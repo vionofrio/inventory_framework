@@ -1,0 +1,8 @@
+{
+    "dependencies": [
+        "IllidanS4/PawnPlus",
+        "openmultiplayer/omp-stdlib"
+    ],
+    "entry": "tests/inventory_ownership_test.pwn",
+    "output": "tests/inventory_ownership_test.amx"
+}
