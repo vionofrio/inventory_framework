@@ -79,7 +79,7 @@ public OnGameModeInit()
         return 0;
     }
 
-    if (!Inventory_Add(inventoryId, instanceId))
+    if (!(Inventory_Add(inventoryId, instanceId) > 0))
     {
         return 0;
     }

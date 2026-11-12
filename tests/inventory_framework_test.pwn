@@ -153,7 +153,7 @@ stock bool:InventoryTest_StringEquals(
 stock InventoryTest_Report()
 {
     printf("--------------------------------------------------");
-    printf("Inventory Framework v0.1.7.4 test report");
+    printf("Inventory Framework v0.1.10.0 test report");
     printf("Passed: %d", gTestsPassed);
     printf("Failed: %d", gTestsFailed);
     printf("--------------------------------------------------");
@@ -167,7 +167,7 @@ main()
 public OnGameModeInit()
 {
     printf("==================================================");
-    printf("Inventory Framework v0.1.7.4 test suite");
+    printf("Inventory Framework v0.1.10.0 test suite");
     printf("==================================================");
 
     /*
@@ -1229,7 +1229,7 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Add(slotTestInventoryId, slotExplicitInstanceId, 2),
+        (Inventory_Add(slotTestInventoryId, slotExplicitInstanceId, 2) > 0),
         "Add places an instance into an explicitly requested empty slot"
     );
 
@@ -1241,7 +1241,7 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Add(slotTestInventoryId, slotAutoFirstInstanceId),
+        (Inventory_Add(slotTestInventoryId, slotAutoFirstInstanceId) > 0),
         "Add accepts the default automatic slot index"
     );
 
@@ -1254,14 +1254,14 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        !Inventory_Add(slotTestInventoryId, slotOccupiedAttemptInstanceId, 2) &&
+        !(Inventory_Add(slotTestInventoryId, slotOccupiedAttemptInstanceId, 2) > 0) &&
         Inventory_ItemInstance_GetInventory(slotOccupiedAttemptInstanceId) == INVALID_INVENTORY_ID &&
         Inventory_Overflow_GetItemCount(slotTestInventoryId) == 0,
         "Add rejects an occupied explicit slot without queueing the instance in Overflow"
     );
 
     InventoryTest_Assert(
-        !Inventory_Add(slotTestInventoryId, slotInvalidIndexInstanceId, 4) &&
+        !(Inventory_Add(slotTestInventoryId, slotInvalidIndexInstanceId, 4) > 0) &&
         Inventory_ItemInstance_GetInventory(slotInvalidIndexInstanceId) == INVALID_INVENTORY_ID &&
         Inventory_Overflow_GetItemCount(slotTestInventoryId) == 0,
         "Add rejects an out-of-range explicit slot without queueing the instance in Overflow"
@@ -1274,7 +1274,7 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Remove(slotTestInventoryId, slotExplicitInstanceId),
+        (Inventory_Remove(slotTestInventoryId, slotExplicitInstanceId) > 0),
         "Removing an item clears its slot"
     );
 
@@ -1288,7 +1288,7 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Add(slotTestInventoryId, slotAutoSecondInstanceId),
+        (Inventory_Add(slotTestInventoryId, slotAutoSecondInstanceId) > 0),
         "Automatic Add can reuse a free slot"
     );
 
@@ -1300,7 +1300,9 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Move(slotTestInventoryId, slotAutoFirstInstanceId, 2, slotDestinationInventoryId),
+        (
+            Inventory_Move(slotTestInventoryId, slotAutoFirstInstanceId, 2, slotDestinationInventoryId) > 0
+        ),
         "Move supports an explicit destination slot"
     );
 
@@ -1314,7 +1316,9 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Move(slotTestInventoryId, slotAutoSecondInstanceId, 2, slotDestinationInventoryId) &&
+        (
+            Inventory_Move(slotTestInventoryId, slotAutoSecondInstanceId, 2, slotDestinationInventoryId) > 0
+        ) &&
         Inventory_GetItemAt(slotTestInventoryId, 1) == slotAutoFirstInstanceId &&
         Inventory_GetItemAt(slotDestinationInventoryId, 2) == slotAutoSecondInstanceId &&
         Inventory_Debug_Validate(),
@@ -1322,14 +1326,18 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        !Inventory_Move(slotTestInventoryId, slotAutoFirstInstanceId, 3, slotDestinationInventoryId) &&
+        !(
+            Inventory_Move(slotTestInventoryId, slotAutoFirstInstanceId, 3, slotDestinationInventoryId) > 0
+        ) &&
         Inventory_GetItemAt(slotTestInventoryId, 1) == slotAutoFirstInstanceId &&
         Inventory_GetItemAt(slotDestinationInventoryId, 2) == slotAutoSecondInstanceId,
         "Move rejects an out-of-range destination without changing either inventory"
     );
 
     InventoryTest_Assert(
-        Inventory_Move(slotTestInventoryId, slotAutoFirstInstanceId, 0, slotDestinationInventoryId),
+        (
+            Inventory_Move(slotTestInventoryId, slotAutoFirstInstanceId, 0, slotDestinationInventoryId) > 0
+        ),
         "Move can target another explicit empty slot"
     );
 
@@ -1342,8 +1350,8 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Remove(slotDestinationInventoryId, slotAutoFirstInstanceId) &&
-        Inventory_Remove(slotDestinationInventoryId, slotAutoSecondInstanceId),
+        (Inventory_Remove(slotDestinationInventoryId, slotAutoFirstInstanceId) > 0) &&
+        (Inventory_Remove(slotDestinationInventoryId, slotAutoSecondInstanceId) > 0),
         "Explicitly moved instances can be removed from their destination slots"
     );
 
@@ -1379,8 +1387,8 @@ public OnGameModeInit()
         ItemInstance:slotStackAutomaticInstanceId = Inventory_ItemInstance_Create(slotStackTypeId, 2);
 
     InventoryTest_Assert(
-        Inventory_Add(slotStackInventoryId, slotStackTargetInstanceId, 2) &&
-        Inventory_Add(slotStackInventoryId, slotStackSourceInstanceId, 1),
+        (Inventory_Add(slotStackInventoryId, slotStackTargetInstanceId, 2) > 0) &&
+        (Inventory_Add(slotStackInventoryId, slotStackSourceInstanceId, 1) > 0),
         "Explicit Add places compatible stacks into their requested slots"
     );
 
@@ -1394,7 +1402,7 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Add(slotStackInventoryId, slotStackAutomaticInstanceId),
+        (Inventory_Add(slotStackInventoryId, slotStackAutomaticInstanceId) > 0),
         "Automatic Add remains available for stackable items"
     );
 
@@ -1412,16 +1420,13 @@ public OnGameModeInit()
         ItemInstance:slotStackMoveTargetInstanceId = Inventory_ItemInstance_Create(slotStackTypeId, 3);
 
     InventoryTest_Assert(
-        Inventory_Add(slotStackMoveDestinationId, slotStackMoveTargetInstanceId, 0),
+        (Inventory_Add(slotStackMoveDestinationId, slotStackMoveTargetInstanceId, 0) > 0),
         "Explicit Move destination fixture accepts a stackable target"
     );
 
     InventoryTest_Assert(
-        Inventory_Move(
-            slotStackInventoryId,
-            slotStackSourceInstanceId,
-            2,
-            slotStackMoveDestinationId
+        (
+            Inventory_Move(slotStackInventoryId, slotStackSourceInstanceId, 2, slotStackMoveDestinationId) > 0
         ),
         "Explicit Move places a compatible stack into the requested destination slot"
     );
@@ -1436,9 +1441,9 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Remove(slotStackInventoryId, slotStackTargetInstanceId) &&
-        Inventory_Remove(slotStackMoveDestinationId, slotStackMoveTargetInstanceId) &&
-        Inventory_Remove(slotStackMoveDestinationId, slotStackSourceInstanceId),
+        (Inventory_Remove(slotStackInventoryId, slotStackTargetInstanceId) > 0) &&
+        (Inventory_Remove(slotStackMoveDestinationId, slotStackMoveTargetInstanceId) > 0) &&
+        (Inventory_Remove(slotStackMoveDestinationId, slotStackSourceInstanceId) > 0),
         "Stackable slot fixtures can be removed after testing explicit placement"
     );
 
@@ -1539,14 +1544,14 @@ public OnGameModeInit()
             Inventory_ItemInstance_Create(typeId, 1);
 
     InventoryTest_Assert(
-        !Inventory_Add(invalidInventoryId, invalidInventoryInstanceId),
+        !(Inventory_Add(invalidInventoryId, invalidInventoryInstanceId) > 0),
         "Add rejects invalid inventory"
     );
 
     Inventory_ItemInstance_Destroy(invalidInventoryInstanceId);
 
     InventoryTest_Assert(
-        !Inventory_Add(inventoryId, invalidInstanceId),
+        !(Inventory_Add(inventoryId, invalidInstanceId) > 0),
         "Add rejects invalid instance"
     );
 
@@ -1614,7 +1619,7 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Add(inventoryId, instanceId),
+        (Inventory_Add(inventoryId, instanceId) > 0),
         "Item instance can be added to inventory"
     );
 
@@ -1642,7 +1647,7 @@ public OnGameModeInit()
         Inventory:secondInventoryId = Inventory_Create(1, 10.0);
 
     InventoryTest_Assert(
-        !Inventory_Add(secondInventoryId, instanceId),
+        !(Inventory_Add(secondInventoryId, instanceId) > 0),
         "An item instance cannot be attached to two inventories"
     );
 
@@ -1665,7 +1670,7 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Add(inventoryId, secondInstanceId),
+        (Inventory_Add(inventoryId, secondInstanceId) > 0),
         "Second item fits before slot/weight limits are reached"
     );
 
@@ -1689,7 +1694,7 @@ public OnGameModeInit()
             Inventory_ItemInstance_Create(typeId, 1);
 
     InventoryTest_Assert(
-        Inventory_Add(inventoryId, thirdInstanceId),
+        (Inventory_Add(inventoryId, thirdInstanceId) > 0),
         "Third item is queued when the inventory is full"
     );
 
@@ -1710,7 +1715,7 @@ public OnGameModeInit()
             Inventory_ItemInstance_Create(typeId, 1);
 
     InventoryTest_Assert(
-        Inventory_Add(inventoryId, fourthInstanceId),
+        (Inventory_Add(inventoryId, fourthInstanceId) > 0),
         "New item joins the existing overflow queue"
     );
 
@@ -1729,22 +1734,22 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        !Inventory_Remove(invalidInventoryId, instanceId),
+        !(Inventory_Remove(invalidInventoryId, instanceId) > 0),
         "Remove rejects invalid inventory"
     );
 
     InventoryTest_Assert(
-        !Inventory_Remove(inventoryId, invalidInstanceId),
+        !(Inventory_Remove(inventoryId, invalidInstanceId) > 0),
         "Remove rejects invalid instance"
     );
 
     InventoryTest_Assert(
-        !Inventory_Remove(secondInventoryId, instanceId),
+        !(Inventory_Remove(secondInventoryId, instanceId) > 0),
         "Remove rejects an instance from the wrong inventory"
     );
 
     InventoryTest_Assert(
-        Inventory_Remove(inventoryId, secondInstanceId),
+        (Inventory_Remove(inventoryId, secondInstanceId) > 0),
         "Attached item instance can be removed from its inventory"
     );
 
@@ -1766,7 +1771,7 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        !Inventory_Remove(inventoryId, secondInstanceId),
+        !(Inventory_Remove(inventoryId, secondInstanceId) > 0),
         "Removing a detached item instance is rejected"
     );
 
@@ -1781,7 +1786,7 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Remove(inventoryId, thirdInstanceId),
+        (Inventory_Remove(inventoryId, thirdInstanceId) > 0),
         "Returned overflow item can be removed from the main inventory"
     );
 
@@ -1793,7 +1798,7 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Remove(inventoryId, fourthInstanceId),
+        (Inventory_Remove(inventoryId, fourthInstanceId) > 0),
         "The next restored overflow item can be removed normally"
     );
 
@@ -1808,76 +1813,60 @@ public OnGameModeInit()
         Inventory:moveDestinationInventoryId = Inventory_Create(2, 10.0);
 
     InventoryTest_Assert(
-        Inventory_Add(inventoryId, moveInstanceId),
+        (Inventory_Add(inventoryId, moveInstanceId) > 0),
         "Move source item can be attached"
     );
 
     InventoryTest_Assert(
-        Inventory_Move(
-            invalidInventoryId,
-            moveInstanceId,
-            INVENTORY_AUTO_SLOT_INDEX,
-            moveDestinationInventoryId
+        (
+            Inventory_Move(
+                invalidInventoryId,
+                moveInstanceId,
+                INVENTORY_AUTO_SLOT_INDEX,
+                moveDestinationInventoryId
+            ) > 0
         ) == false,
         "Move rejects invalid source inventory"
     );
 
     InventoryTest_Assert(
-        Inventory_Move(
-            inventoryId,
-            moveInstanceId,
-            INVENTORY_AUTO_SLOT_INDEX,
-            invalidInventoryId
+        (
+            Inventory_Move(inventoryId, moveInstanceId, INVENTORY_AUTO_SLOT_INDEX, invalidInventoryId) > 0
         ) == false,
         "Move rejects invalid destination inventory"
     );
 
     InventoryTest_Assert(
-        Inventory_Move(
-            inventoryId,
-            invalidInstanceId,
-            INVENTORY_AUTO_SLOT_INDEX,
-            moveDestinationInventoryId
+        (
+            Inventory_Move(inventoryId, invalidInstanceId, INVENTORY_AUTO_SLOT_INDEX, moveDestinationInventoryId) > 0
         ) == false,
         "Move rejects invalid instance"
     );
 
     InventoryTest_Assert(
-        !Inventory_Move(
-            inventoryId,
-            moveInstanceId,
-            INVENTORY_AUTO_SLOT_INDEX,
-            inventoryId
+        !(
+            Inventory_Move(inventoryId, moveInstanceId, INVENTORY_AUTO_SLOT_INDEX, inventoryId) > 0
         ),
         "Move rejects identical source and destination"
     );
 
     InventoryTest_Assert(
-        !Inventory_Move(
-            secondInventoryId,
-            moveInstanceId,
-            INVENTORY_AUTO_SLOT_INDEX,
-            moveDestinationInventoryId
+        !(
+            Inventory_Move(secondInventoryId, moveInstanceId, INVENTORY_AUTO_SLOT_INDEX, moveDestinationInventoryId) > 0
         ),
         "Move rejects an instance that is not in the source inventory"
     );
 
     InventoryTest_Assert(
-        Inventory_Move(
-            inventoryId,
-            moveInstanceId,
-            INVENTORY_AUTO_SLOT_INDEX,
-            moveDestinationInventoryId
+        (
+            Inventory_Move(inventoryId, moveInstanceId, INVENTORY_AUTO_SLOT_INDEX, moveDestinationInventoryId) > 0
         ),
         "Attached item instance can be moved to another inventory"
     );
 
     InventoryTest_Assert(
-        !Inventory_Move(
-            inventoryId,
-            moveInstanceId,
-            INVENTORY_AUTO_SLOT_INDEX,
-            moveDestinationInventoryId
+        !(
+            Inventory_Move(inventoryId, moveInstanceId, INVENTORY_AUTO_SLOT_INDEX, moveDestinationInventoryId) > 0
         ),
         "Moved item instance is no longer present in the source inventory"
     );
@@ -1905,17 +1894,14 @@ public OnGameModeInit()
         ItemInstance:swapDestinationInstanceId = Inventory_ItemInstance_Create(secondTypeId, 1);
 
     InventoryTest_Assert(
-        Inventory_Add(swapSourceInventoryId, swapSourceInstanceId, 0) &&
-        Inventory_Add(swapDestinationInventoryId, swapDestinationInstanceId, 0),
+        (Inventory_Add(swapSourceInventoryId, swapSourceInstanceId, 0) > 0) &&
+        (Inventory_Add(swapDestinationInventoryId, swapDestinationInstanceId, 0) > 0),
         "Cross-inventory Swap fixtures can be attached at explicit occupied slots"
     );
 
     InventoryTest_Assert(
-        Inventory_Swap(
-            swapSourceInventoryId,
-            swapSourceInstanceId,
-            0,
-            swapDestinationInventoryId
+        (
+            Inventory_Swap(swapSourceInventoryId, swapSourceInstanceId, 0, swapDestinationInventoryId) > 0
         ) &&
         Inventory_GetItemAt(swapSourceInventoryId, 0) == swapDestinationInstanceId &&
         Inventory_GetItemAt(swapDestinationInventoryId, 0) == swapSourceInstanceId &&
@@ -1928,11 +1914,8 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Move(
-            swapSourceInventoryId,
-            swapDestinationInstanceId,
-            0,
-            swapDestinationInventoryId
+        (
+            Inventory_Move(swapSourceInventoryId, swapDestinationInstanceId, 0, swapDestinationInventoryId) > 0
         ) &&
         Inventory_GetItemAt(swapSourceInventoryId, 0) == swapSourceInstanceId &&
         Inventory_GetItemAt(swapDestinationInventoryId, 0) == swapDestinationInstanceId &&
@@ -1945,11 +1928,8 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        !Inventory_Swap(
-            swapSourceInventoryId,
-            swapSourceInstanceId,
-            2,
-            swapDestinationInventoryId
+        !(
+            Inventory_Swap(swapSourceInventoryId, swapSourceInstanceId, 2, swapDestinationInventoryId) > 0
         ) &&
         Inventory_GetItemAt(swapSourceInventoryId, 0) == swapSourceInstanceId &&
         Inventory_GetItemAt(swapDestinationInventoryId, 0) == swapDestinationInstanceId &&
@@ -1958,11 +1938,8 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        !Inventory_Swap(
-            swapSourceInventoryId,
-            swapSourceInstanceId,
-            1,
-            swapDestinationInventoryId
+        !(
+            Inventory_Swap(swapSourceInventoryId, swapSourceInstanceId, 1, swapDestinationInventoryId) > 0
         ) &&
         Inventory_GetItemAt(swapSourceInventoryId, 0) == swapSourceInstanceId &&
         Inventory_GetItemAt(swapDestinationInventoryId, 0) == swapDestinationInstanceId &&
@@ -1978,23 +1955,27 @@ public OnGameModeInit()
         ItemInstance:swapWeightDestinationInstanceId = Inventory_ItemInstance_Create(secondTypeId, 1);
 
     InventoryTest_Assert(
-        Inventory_Add(swapWeightSourceInventoryId, swapWeightSourceInstanceId, 0) &&
-        Inventory_Add(swapWeightDestinationInventoryId, swapWeightDestinationInstanceId, 0),
+        (Inventory_Add(swapWeightSourceInventoryId, swapWeightSourceInstanceId, 0) > 0) &&
+        (Inventory_Add(swapWeightDestinationInventoryId, swapWeightDestinationInstanceId, 0) > 0),
         "Weight-limited Swap fixtures can be attached"
     );
 
     InventoryTest_Assert(
-        !Inventory_Swap(
-            swapWeightSourceInventoryId,
-            swapWeightSourceInstanceId,
-            0,
-            swapWeightDestinationInventoryId
+        !(
+            Inventory_Swap(
+                swapWeightSourceInventoryId,
+                swapWeightSourceInstanceId,
+                0,
+                swapWeightDestinationInventoryId
+            ) > 0
         ) &&
-        !Inventory_Move(
-            swapWeightSourceInventoryId,
-            swapWeightSourceInstanceId,
-            0,
-            swapWeightDestinationInventoryId
+        !(
+            Inventory_Move(
+                swapWeightSourceInventoryId,
+                swapWeightSourceInstanceId,
+                0,
+                swapWeightDestinationInventoryId
+            ) > 0
         ) &&
         Inventory_GetItemAt(swapWeightSourceInventoryId, 0) == swapWeightSourceInstanceId &&
         Inventory_GetItemAt(swapWeightDestinationInventoryId, 0) == swapWeightDestinationInstanceId &&
@@ -2011,14 +1992,14 @@ public OnGameModeInit()
             Inventory_ItemInstance_GetInventory(swapDestinationInstanceId);
 
     InventoryTest_Assert(
-        Inventory_Remove(swapSourceCurrentInventoryId, swapSourceInstanceId) &&
-        Inventory_Remove(swapDestinationCurrentInventoryId, swapDestinationInstanceId) &&
+        (Inventory_Remove(swapSourceCurrentInventoryId, swapSourceInstanceId) > 0) &&
+        (Inventory_Remove(swapDestinationCurrentInventoryId, swapDestinationInstanceId) > 0) &&
         Inventory_ItemInstance_Destroy(swapSourceInstanceId) &&
         Inventory_ItemInstance_Destroy(swapDestinationInstanceId) &&
         Inventory_Destroy(swapSourceInventoryId) &&
         Inventory_Destroy(swapDestinationInventoryId) &&
-        Inventory_Remove(swapWeightSourceInventoryId, swapWeightSourceInstanceId) &&
-        Inventory_Remove(swapWeightDestinationInventoryId, swapWeightDestinationInstanceId) &&
+        (Inventory_Remove(swapWeightSourceInventoryId, swapWeightSourceInstanceId) > 0) &&
+        (Inventory_Remove(swapWeightDestinationInventoryId, swapWeightDestinationInstanceId) > 0) &&
         Inventory_ItemInstance_Destroy(swapWeightSourceInstanceId) &&
         Inventory_ItemInstance_Destroy(swapWeightDestinationInstanceId) &&
         Inventory_Destroy(swapWeightSourceInventoryId) &&
@@ -2032,16 +2013,14 @@ public OnGameModeInit()
         ItemInstance:sameSwapTargetInstanceId = Inventory_ItemInstance_Create(secondTypeId, 1);
 
     InventoryTest_Assert(
-        Inventory_Add(sameSwapInventoryId, sameSwapSourceInstanceId, 0) &&
-        Inventory_Add(sameSwapInventoryId, sameSwapTargetInstanceId, 1),
+        (Inventory_Add(sameSwapInventoryId, sameSwapSourceInstanceId, 0) > 0) &&
+        (Inventory_Add(sameSwapInventoryId, sameSwapTargetInstanceId, 1) > 0),
         "Same-inventory Swap fixtures can be attached at explicit slots"
     );
 
     InventoryTest_Assert(
-        Inventory_Swap(
-            sameSwapInventoryId,
-            sameSwapSourceInstanceId,
-            1
+        (
+            Inventory_Swap(sameSwapInventoryId, sameSwapSourceInstanceId, 1) > 0
         ) &&
         Inventory_GetItemAt(sameSwapInventoryId, 0) == sameSwapTargetInstanceId &&
         Inventory_GetItemAt(sameSwapInventoryId, 1) == sameSwapSourceInstanceId &&
@@ -2050,8 +2029,8 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Remove(sameSwapInventoryId, sameSwapTargetInstanceId) &&
-        Inventory_Remove(sameSwapInventoryId, sameSwapSourceInstanceId) &&
+        (Inventory_Remove(sameSwapInventoryId, sameSwapTargetInstanceId) > 0) &&
+        (Inventory_Remove(sameSwapInventoryId, sameSwapSourceInstanceId) > 0) &&
         Inventory_ItemInstance_Destroy(sameSwapSourceInstanceId) &&
         Inventory_ItemInstance_Destroy(sameSwapTargetInstanceId) &&
         Inventory_Destroy(sameSwapInventoryId),
@@ -2082,21 +2061,23 @@ public OnGameModeInit()
             Inventory_ItemInstance_Create(moveAmmoTypeId, 8);
 
     InventoryTest_Assert(
-        Inventory_Add(stackMoveSourceInventoryId, stackMoveSourceInstanceId),
+        (Inventory_Add(stackMoveSourceInventoryId, stackMoveSourceInstanceId) > 0),
         "Stack move source can be attached"
     );
 
     InventoryTest_Assert(
-        Inventory_Add(stackMoveDestinationInventoryId, stackMoveTargetInstanceId),
+        (Inventory_Add(stackMoveDestinationInventoryId, stackMoveTargetInstanceId) > 0),
         "Stack move target can be attached"
     );
 
     InventoryTest_Assert(
-        Inventory_Move(
-            stackMoveSourceInventoryId,
-            stackMoveSourceInstanceId,
-            INVENTORY_AUTO_SLOT_INDEX,
-            stackMoveDestinationInventoryId
+        (
+            Inventory_Move(
+                stackMoveSourceInventoryId,
+                stackMoveSourceInstanceId,
+                INVENTORY_AUTO_SLOT_INDEX,
+                stackMoveDestinationInventoryId
+            ) > 0
         ),
         "Move fills a compatible destination stack"
     );
@@ -2130,35 +2111,34 @@ public OnGameModeInit()
             Inventory_ItemInstance_Create(moveAmmoTypeId, 9);
 
     InventoryTest_Assert(
-        Inventory_Add(
-            multiStackMoveSourceInventoryId,
-            multiStackMoveSourceInstanceId
+        (
+            Inventory_Add(multiStackMoveSourceInventoryId, multiStackMoveSourceInstanceId) > 0
         ),
         "Multi-stack move source can be attached"
     );
 
     InventoryTest_Assert(
-        Inventory_Add(
-            multiStackMoveDestinationInventoryId,
-            multiStackMoveFirstTargetInstanceId
+        (
+            Inventory_Add(multiStackMoveDestinationInventoryId, multiStackMoveFirstTargetInstanceId) > 0
         ),
         "Multi-stack move first target can be attached"
     );
 
     InventoryTest_Assert(
-        Inventory_Add(
-            multiStackMoveDestinationInventoryId,
-            multiStackMoveSecondTargetInstanceId
+        (
+            Inventory_Add(multiStackMoveDestinationInventoryId, multiStackMoveSecondTargetInstanceId) > 0
         ),
         "Multi-stack move second target can be attached"
     );
 
     InventoryTest_Assert(
-        Inventory_Move(
-            multiStackMoveSourceInventoryId,
-            multiStackMoveSourceInstanceId,
-            INVENTORY_AUTO_SLOT_INDEX,
-            multiStackMoveDestinationInventoryId
+        (
+            Inventory_Move(
+                multiStackMoveSourceInventoryId,
+                multiStackMoveSourceInstanceId,
+                INVENTORY_AUTO_SLOT_INDEX,
+                multiStackMoveDestinationInventoryId
+            ) > 0
         ),
         "Move fills multiple compatible destination stacks"
     );
@@ -2198,21 +2178,23 @@ public OnGameModeInit()
             Inventory_ItemInstance_Create(moveAmmoTypeId, 8);
 
     InventoryTest_Assert(
-        Inventory_Add(fullStackMoveSourceInventoryId, fullStackMoveSourceInstanceId),
+        (Inventory_Add(fullStackMoveSourceInventoryId, fullStackMoveSourceInstanceId) > 0),
         "Full stack move source can be attached"
     );
 
     InventoryTest_Assert(
-        Inventory_Add(fullStackMoveDestinationInventoryId, fullStackMoveTargetInstanceId),
+        (Inventory_Add(fullStackMoveDestinationInventoryId, fullStackMoveTargetInstanceId) > 0),
         "Full stack move target can be attached"
     );
 
     InventoryTest_Assert(
-        Inventory_Move(
-            fullStackMoveSourceInventoryId,
-            fullStackMoveSourceInstanceId,
-            INVENTORY_AUTO_SLOT_INDEX,
-            fullStackMoveDestinationInventoryId
+        (
+            Inventory_Move(
+                fullStackMoveSourceInventoryId,
+                fullStackMoveSourceInstanceId,
+                INVENTORY_AUTO_SLOT_INDEX,
+                fullStackMoveDestinationInventoryId
+            ) > 0
         ),
         "Move merges a source stack completely"
     );
@@ -2232,27 +2214,27 @@ public OnGameModeInit()
             Inventory_ItemInstance_Create(moveAmmoTypeId, 8);
 
     InventoryTest_Assert(
-        Inventory_Add(
-            fullCapacityMoveSourceInventoryId,
-            fullCapacityMoveSourceInstanceId
+        (
+            Inventory_Add(fullCapacityMoveSourceInventoryId, fullCapacityMoveSourceInstanceId) > 0
         ),
         "Full destination stack move source can be attached"
     );
 
     InventoryTest_Assert(
-        Inventory_Add(
-            fullCapacityMoveDestinationInventoryId,
-            fullCapacityMoveTargetInstanceId
+        (
+            Inventory_Add(fullCapacityMoveDestinationInventoryId, fullCapacityMoveTargetInstanceId) > 0
         ),
         "Full destination stack move target can be attached"
     );
 
     InventoryTest_Assert(
-        Inventory_Move(
-            fullCapacityMoveSourceInventoryId,
-            fullCapacityMoveSourceInstanceId,
-            INVENTORY_AUTO_SLOT_INDEX,
-            fullCapacityMoveDestinationInventoryId
+        (
+            Inventory_Move(
+                fullCapacityMoveSourceInventoryId,
+                fullCapacityMoveSourceInstanceId,
+                INVENTORY_AUTO_SLOT_INDEX,
+                fullCapacityMoveDestinationInventoryId
+            ) > 0
         ),
         "Move uses compatible stack capacity when destination has no free slot"
     );
@@ -2266,17 +2248,15 @@ public OnGameModeInit()
             Inventory_ItemInstance_Create(moveAmmoTypeId, 8);
 
     InventoryTest_Assert(
-        Inventory_Add(
-            blockedStackMoveSourceInventoryId,
-            blockedStackMoveSourceInstanceId
+        (
+            Inventory_Add(blockedStackMoveSourceInventoryId, blockedStackMoveSourceInstanceId) > 0
         ),
         "Blocked stack move source can be attached"
     );
 
     InventoryTest_Assert(
-        Inventory_Add(
-            blockedStackMoveDestinationInventoryId,
-            blockedStackMoveTargetInstanceId
+        (
+            Inventory_Add(blockedStackMoveDestinationInventoryId, blockedStackMoveTargetInstanceId) > 0
         ),
         "Blocked stack move target can be attached"
     );
@@ -2292,11 +2272,13 @@ public OnGameModeInit()
             Inventory_ItemInstance_GetStack(blockedStackMoveTargetInstanceId);
 
     InventoryTest_Assert(
-        !Inventory_Move(
-            blockedStackMoveSourceInventoryId,
-            blockedStackMoveSourceInstanceId,
-            INVENTORY_AUTO_SLOT_INDEX,
-            blockedStackMoveDestinationInventoryId
+        !(
+            Inventory_Move(
+                blockedStackMoveSourceInventoryId,
+                blockedStackMoveSourceInstanceId,
+                INVENTORY_AUTO_SLOT_INDEX,
+                blockedStackMoveDestinationInventoryId
+            ) > 0
         ),
         "Move rejects a full destination with insufficient compatible capacity"
     );
@@ -2323,21 +2305,20 @@ public OnGameModeInit()
     Inventory_Add(fullMoveDestinationId, fullMoveDestinationInstanceId);
 
     InventoryTest_Assert(
-        !Inventory_Move(
-            moveDestinationInventoryId,
-            moveInstanceId,
-            INVENTORY_AUTO_SLOT_INDEX,
-            fullMoveDestinationId
+        !(
+            Inventory_Move(
+                moveDestinationInventoryId,
+                moveInstanceId,
+                INVENTORY_AUTO_SLOT_INDEX,
+                fullMoveDestinationId
+            ) > 0
         ),
         "Move rejects a full destination inventory"
     );
 
     InventoryTest_Assert(
-        Inventory_Move(
-            moveDestinationInventoryId,
-            moveInstanceId,
-            INVENTORY_AUTO_SLOT_INDEX,
-            inventoryId
+        (
+            Inventory_Move(moveDestinationInventoryId, moveInstanceId, INVENTORY_AUTO_SLOT_INDEX, inventoryId) > 0
         ),
         "Failed move leaves the source item available"
     );
@@ -2348,26 +2329,20 @@ public OnGameModeInit()
             Inventory_ItemInstance_Create(typeId, 1);
 
     InventoryTest_Assert(
-        Inventory_Add(weightMoveDestinationId, weightMoveInstanceId),
+        (Inventory_Add(weightMoveDestinationId, weightMoveInstanceId) > 0),
         "Weight-limited move destination accepts smaller items"
     );
 
     InventoryTest_Assert(
-        !Inventory_Move(
-            inventoryId,
-            moveInstanceId,
-            INVENTORY_AUTO_SLOT_INDEX,
-            weightMoveDestinationId
+        !(
+            Inventory_Move(inventoryId, moveInstanceId, INVENTORY_AUTO_SLOT_INDEX, weightMoveDestinationId) > 0
         ),
         "Move rejects a destination that exceeds weight limit"
     );
 
     InventoryTest_Assert(
-        Inventory_Move(
-            inventoryId,
-            moveInstanceId,
-            INVENTORY_AUTO_SLOT_INDEX,
-            moveDestinationInventoryId
+        (
+            Inventory_Move(inventoryId, moveInstanceId, INVENTORY_AUTO_SLOT_INDEX, moveDestinationInventoryId) > 0
         ),
         "Weight-rejected move leaves the source item available"
     );
@@ -2379,7 +2354,7 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Add(inventoryId, thirdInstanceId),
+        (Inventory_Add(inventoryId, thirdInstanceId) > 0),
         "Removing an item frees an inventory slot"
     );
 
@@ -2398,7 +2373,7 @@ public OnGameModeInit()
             Inventory_ItemInstance_Create(typeId, 1);
 
     InventoryTest_Assert(
-        Inventory_Add(occupiedDestroyInventoryId, occupiedDestroyInstanceId),
+        (Inventory_Add(occupiedDestroyInventoryId, occupiedDestroyInstanceId) > 0),
         "Inventory destruction test item can be attached"
     );
 
@@ -2413,7 +2388,7 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Remove(occupiedDestroyInventoryId, occupiedDestroyInstanceId),
+        (Inventory_Remove(occupiedDestroyInventoryId, occupiedDestroyInstanceId) > 0),
         "Inventory destruction test item can be removed"
     );
 
@@ -2474,9 +2449,8 @@ public OnGameModeInit()
             Inventory_ItemInstance_Create(typeId, 1);
 
     InventoryTest_Assert(
-        Inventory_Add(
-            overflowDestroyInventoryId,
-            overflowDestroyInstanceId
+        (
+            Inventory_Add(overflowDestroyInventoryId, overflowDestroyInstanceId) > 0
         ) &&
         Inventory_GetItemCount(overflowDestroyInventoryId) == 0 &&
         Inventory_Overflow_GetItemCount(overflowDestroyInventoryId) == 1 &&
@@ -2495,9 +2469,8 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Overflow_Remove(
-            overflowDestroyInventoryId,
-            overflowDestroyInstanceId
+        (
+            Inventory_Overflow_Remove(overflowDestroyInventoryId, overflowDestroyInstanceId) > 0
         ) &&
         Inventory_Overflow_GetItemCount(overflowDestroyInventoryId) == 0 &&
         !Inventory_ItemInstance_IsAttached(overflowDestroyInstanceId),
@@ -2657,7 +2630,7 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Add(ammoInventoryId, ammoInstanceId),
+        (Inventory_Add(ammoInventoryId, ammoInstanceId) > 0),
         "Stack is added to inventory"
     );
 
@@ -2688,12 +2661,12 @@ public OnGameModeInit()
             Inventory_ItemInstance_Create(ammoTypeId, 3);
 
     InventoryTest_Assert(
-        Inventory_Add(autoStackInventoryId, autoStackTargetInstanceId),
+        (Inventory_Add(autoStackInventoryId, autoStackTargetInstanceId) > 0),
         "Auto-stack target can be added"
     );
 
     InventoryTest_Assert(
-        Inventory_Add(autoStackInventoryId, autoStackSourceInstanceId),
+        (Inventory_Add(autoStackInventoryId, autoStackSourceInstanceId) > 0),
         "Auto-stack source can be added"
     );
 
@@ -2711,12 +2684,12 @@ public OnGameModeInit()
             Inventory_ItemInstance_Create(ammoTypeId, 5);
 
     InventoryTest_Assert(
-        Inventory_Add(partialAutoStackInventoryId, partialStackTargetInstanceId),
+        (Inventory_Add(partialAutoStackInventoryId, partialStackTargetInstanceId) > 0),
         "Partial auto-stack target can be added"
     );
 
     InventoryTest_Assert(
-        Inventory_Add(partialAutoStackInventoryId, partialStackSourceInstanceId),
+        (Inventory_Add(partialAutoStackInventoryId, partialStackSourceInstanceId) > 0),
         "Partial auto-stack source can be added"
     );
 
@@ -2743,7 +2716,7 @@ public OnGameModeInit()
             Inventory_ItemInstance_Create(ammoTypeId, 10);
 
     InventoryTest_Assert(
-        Inventory_Add(multiStackInventoryId, multiStackTargetInstanceId),
+        (Inventory_Add(multiStackInventoryId, multiStackTargetInstanceId) > 0),
         "Multi-stack first target can be added"
     );
 
@@ -2759,7 +2732,7 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Add(multiStackInventoryId, multiStackSourceInstanceId),
+        (Inventory_Add(multiStackInventoryId, multiStackSourceInstanceId) > 0),
         "Multi-stack source can be added"
     );
 
@@ -2775,7 +2748,7 @@ public OnGameModeInit()
             Inventory_ItemInstance_Create(ammoTypeId, 1);
 
     InventoryTest_Assert(
-        Inventory_Add(ammoInventoryId, secondAmmoInstanceId),
+        (Inventory_Add(ammoInventoryId, secondAmmoInstanceId) > 0),
         "Full inventory queues another stack without merge support"
     );
 
@@ -2886,7 +2859,7 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Add(splitInventoryId, attachedSplitSourceInstanceId),
+        (Inventory_Add(splitInventoryId, attachedSplitSourceInstanceId) > 0),
         "Attached split source can be added to inventory"
     );
 
@@ -2927,12 +2900,12 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Remove(splitInventoryId, attachedSplitInstanceId),
+        (Inventory_Remove(splitInventoryId, attachedSplitInstanceId) > 0),
         "Attached split result can be removed"
     );
 
     InventoryTest_Assert(
-        Inventory_Remove(splitInventoryId, attachedSplitSourceInstanceId),
+        (Inventory_Remove(splitInventoryId, attachedSplitSourceInstanceId) > 0),
         "Attached split source can be removed"
     );
 
@@ -2950,7 +2923,7 @@ public OnGameModeInit()
             Inventory_ItemInstance_Create(ammoTypeId, 5);
 
     InventoryTest_Assert(
-        Inventory_Add(splitOverflowInventoryId, splitOverflowSourceInstanceId),
+        (Inventory_Add(splitOverflowInventoryId, splitOverflowSourceInstanceId) > 0),
         "Split Overflow source can be added"
     );
 
@@ -2994,8 +2967,8 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Remove(splitOverflowInventoryId, splitOverflowSourceInstanceId) &&
-        Inventory_Remove(splitOverflowInventoryId, splitOverflowSplitInstanceId),
+        (Inventory_Remove(splitOverflowInventoryId, splitOverflowSourceInstanceId) > 0) &&
+        (Inventory_Remove(splitOverflowInventoryId, splitOverflowSplitInstanceId) > 0),
         "Split Overflow test stacks can be removed"
     );
 
@@ -3012,7 +2985,7 @@ public OnGameModeInit()
         fullSplitInitialTypeInstanceCount = Inventory_ItemType_GetInstanceCount(ammoTypeId);
 
     InventoryTest_Assert(
-        Inventory_Add(fullSplitInventoryId, fullSplitSourceInstanceId),
+        (Inventory_Add(fullSplitInventoryId, fullSplitSourceInstanceId) > 0),
         "Full split source can be added to inventory"
     );
 
@@ -3028,7 +3001,7 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Remove(fullSplitInventoryId, fullSplitSourceInstanceId) &&
+        (Inventory_Remove(fullSplitInventoryId, fullSplitSourceInstanceId) > 0) &&
         Inventory_ItemInstance_Destroy(fullSplitSourceInstanceId),
         "Rejected split source can be cleaned up"
     );
@@ -3050,7 +3023,7 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Add(mergeInventoryId, mergeTargetInstanceId),
+        (Inventory_Add(mergeInventoryId, mergeTargetInstanceId) > 0),
         "Merge target instance can be attached"
     );
 
@@ -3065,7 +3038,7 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_MergeStack(mergeTargetInstanceId, mergeSourceInstanceId),
+        (Inventory_MergeStack(mergeTargetInstanceId, mergeSourceInstanceId) > 0),
         "Instances with matching type and properties can be merged"
     );
 
@@ -3102,8 +3075,8 @@ public OnGameModeInit()
         ItemInstance:partialSameSourceInstanceId = Inventory_ItemInstance_Create(ammoTypeId, 5);
 
     InventoryTest_Assert(
-        Inventory_Add(partialSameInventoryId, partialSameTargetInstanceId, 0) &&
-        Inventory_Add(partialSameInventoryId, partialSameSourceInstanceId, 1),
+        (Inventory_Add(partialSameInventoryId, partialSameTargetInstanceId, 0) > 0) &&
+        (Inventory_Add(partialSameInventoryId, partialSameSourceInstanceId, 1) > 0),
         "Same-inventory partial merge fixtures can be attached to explicit slots"
     );
 
@@ -3116,7 +3089,7 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_MergeStack(partialSameTargetInstanceId, partialSameSourceInstanceId),
+        (Inventory_MergeStack(partialSameTargetInstanceId, partialSameSourceInstanceId) > 0),
         "Same-inventory partial merge succeeds"
     );
 
@@ -3136,8 +3109,8 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Remove(partialSameInventoryId, partialSameTargetInstanceId) &&
-        Inventory_Remove(partialSameInventoryId, partialSameSourceInstanceId) &&
+        (Inventory_Remove(partialSameInventoryId, partialSameTargetInstanceId) > 0) &&
+        (Inventory_Remove(partialSameInventoryId, partialSameSourceInstanceId) > 0) &&
         Inventory_ItemInstance_Destroy(partialSameTargetInstanceId) &&
         Inventory_ItemInstance_Destroy(partialSameSourceInstanceId) &&
         Inventory_Destroy(partialSameInventoryId),
@@ -3151,9 +3124,8 @@ public OnGameModeInit()
             Inventory_ItemInstance_Create(ammoTypeId, 4);
 
     InventoryTest_Assert(
-        Inventory_MergeStack(
-            partialDetachedTargetInstanceId,
-            partialDetachedSourceInstanceId
+        (
+            Inventory_MergeStack(partialDetachedTargetInstanceId, partialDetachedSourceInstanceId) > 0
         ),
         "Detached partial merge fills the target to maxStack"
     );
@@ -3177,9 +3149,8 @@ public OnGameModeInit()
         ItemInstance:fullSourcePartialSourceInstanceId = Inventory_ItemInstance_Create(ammoTypeId, 10);
 
     InventoryTest_Assert(
-        Inventory_MergeStack(
-            fullSourcePartialTargetInstanceId,
-            fullSourcePartialSourceInstanceId
+        (
+            Inventory_MergeStack(fullSourcePartialTargetInstanceId, fullSourcePartialSourceInstanceId) > 0
         ),
         "Core partial merge accepts a source already at maxStack"
     );
@@ -3203,7 +3174,7 @@ public OnGameModeInit()
         ItemInstance:fullMergeSourceInstanceId = Inventory_ItemInstance_Create(ammoTypeId, 4);
 
     InventoryTest_Assert(
-        !Inventory_MergeStack(fullMergeTargetInstanceId, fullMergeSourceInstanceId) &&
+        !(Inventory_MergeStack(fullMergeTargetInstanceId, fullMergeSourceInstanceId) > 0) &&
         Inventory_ItemInstance_GetStack(fullMergeTargetInstanceId) == 10 &&
         Inventory_ItemInstance_GetStack(fullMergeSourceInstanceId) == 4,
         "Merge rejects a full target without changing either stack"
@@ -3231,17 +3202,15 @@ public OnGameModeInit()
             Inventory_ItemInstance_Create(ammoTypeId, 1);
 
     InventoryTest_Assert(
-        !Inventory_MergeStack(
-            defaultStackInstanceId,
-            differentTypeMergeInstanceId
+        !(
+            Inventory_MergeStack(defaultStackInstanceId, differentTypeMergeInstanceId) > 0
         ),
         "Merge rejects different item types"
     );
 
     InventoryTest_Assert(
-        !Inventory_MergeStack(
-            defaultStackInstanceId,
-            defaultStackInstanceId
+        !(
+            Inventory_MergeStack(defaultStackInstanceId, defaultStackInstanceId) > 0
         ),
         "Merge rejects the same instance as target and source"
     );
@@ -3253,9 +3222,8 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        !Inventory_MergeStack(
-            defaultStackInstanceId,
-            differentPropertyMergeInstanceId
+        !(
+            Inventory_MergeStack(defaultStackInstanceId, differentPropertyMergeInstanceId) > 0
         ),
         "Merge rejects instances with different properties"
     );
@@ -3279,19 +3247,18 @@ public OnGameModeInit()
             Inventory_ItemInstance_Create(ammoTypeId, 2);
 
     InventoryTest_Assert(
-        Inventory_Add(crossMergeTargetInventoryId, crossMergeTargetInstanceId),
+        (Inventory_Add(crossMergeTargetInventoryId, crossMergeTargetInstanceId) > 0),
         "Cross-inventory merge target can be attached"
     );
 
     InventoryTest_Assert(
-        Inventory_Add(crossMergeSourceInventoryId, crossMergeSourceInstanceId),
+        (Inventory_Add(crossMergeSourceInventoryId, crossMergeSourceInstanceId) > 0),
         "Cross-inventory merge source can be attached"
     );
 
     InventoryTest_Assert(
-        Inventory_MergeStack(
-            crossMergeTargetInstanceId,
-            crossMergeSourceInstanceId
+        (
+            Inventory_MergeStack(crossMergeTargetInstanceId, crossMergeSourceInstanceId) > 0
         ),
         "Attached instances can merge across inventories"
     );
@@ -3320,13 +3287,13 @@ public OnGameModeInit()
         ItemInstance:partialCrossSourceInstanceId = Inventory_ItemInstance_Create(ammoTypeId, 5);
 
     InventoryTest_Assert(
-        Inventory_Add(partialCrossTargetInventoryId, partialCrossTargetInstanceId) &&
-        Inventory_Add(partialCrossSourceInventoryId, partialCrossSourceInstanceId),
+        (Inventory_Add(partialCrossTargetInventoryId, partialCrossTargetInstanceId) > 0) &&
+        (Inventory_Add(partialCrossSourceInventoryId, partialCrossSourceInstanceId) > 0),
         "Cross-inventory partial merge fixtures can be attached"
     );
 
     InventoryTest_Assert(
-        Inventory_MergeStack(partialCrossTargetInstanceId, partialCrossSourceInstanceId),
+        (Inventory_MergeStack(partialCrossTargetInstanceId, partialCrossSourceInstanceId) > 0),
         "Cross-inventory partial merge transfers only the target's remaining stack capacity"
     );
 
@@ -3346,8 +3313,8 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Remove(partialCrossTargetInventoryId, partialCrossTargetInstanceId) &&
-        Inventory_Remove(partialCrossSourceInventoryId, partialCrossSourceInstanceId) &&
+        (Inventory_Remove(partialCrossTargetInventoryId, partialCrossTargetInstanceId) > 0) &&
+        (Inventory_Remove(partialCrossSourceInventoryId, partialCrossSourceInstanceId) > 0) &&
         Inventory_ItemInstance_Destroy(partialCrossTargetInstanceId) &&
         Inventory_ItemInstance_Destroy(partialCrossSourceInstanceId) &&
         Inventory_Destroy(partialCrossTargetInventoryId) &&
@@ -3377,12 +3344,12 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Add(mergeOverflowInventoryId, mergeOverflowTargetInstanceId),
+        (Inventory_Add(mergeOverflowInventoryId, mergeOverflowTargetInstanceId) > 0),
         "Merge Overflow target can be attached"
     );
 
     InventoryTest_Assert(
-        Inventory_Add(mergeOverflowInventoryId, mergeOverflowSourceInstanceId),
+        (Inventory_Add(mergeOverflowInventoryId, mergeOverflowSourceInstanceId) > 0),
         "Merge Overflow source can be attached"
     );
 
@@ -3396,7 +3363,7 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Add(mergeOverflowInventoryId, mergeOverflowPendingInstanceId),
+        (Inventory_Add(mergeOverflowInventoryId, mergeOverflowPendingInstanceId) > 0),
         "Merge Overflow pending item can be enqueued"
     );
 
@@ -3408,9 +3375,8 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_MergeStack(
-            mergeOverflowTargetInstanceId,
-            mergeOverflowSourceInstanceId
+        (
+            Inventory_MergeStack(mergeOverflowTargetInstanceId, mergeOverflowSourceInstanceId) > 0
         ),
         "Merge frees capacity for a pending Overflow item"
     );
@@ -3446,9 +3412,9 @@ public OnGameModeInit()
             Inventory_ItemInstance_Create(defaultTypeId, 1);
 
     InventoryTest_Assert(
-        Inventory_Add(mergeBlockedTargetInventoryId, mergeBlockedTargetInstanceId) &&
-        Inventory_Add(mergeBlockedTargetInventoryId, mergeBlockedPendingInstanceId) &&
-        Inventory_Add(mergeBlockedSourceInventoryId, mergeBlockedSourceInstanceId),
+        (Inventory_Add(mergeBlockedTargetInventoryId, mergeBlockedTargetInstanceId) > 0) &&
+        (Inventory_Add(mergeBlockedTargetInventoryId, mergeBlockedPendingInstanceId) > 0) &&
+        (Inventory_Add(mergeBlockedSourceInventoryId, mergeBlockedSourceInstanceId) > 0),
         "Cross-inventory Merge Overflow scenario is prepared"
     );
 
@@ -3460,9 +3426,8 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        !Inventory_MergeStack(
-            mergeBlockedTargetInstanceId,
-            mergeBlockedSourceInstanceId
+        !(
+            Inventory_MergeStack(mergeBlockedTargetInstanceId, mergeBlockedSourceInstanceId) > 0
         ),
         "Cross-inventory Merge cannot bypass a blocked destination Overflow"
     );
@@ -3501,13 +3466,13 @@ public OnGameModeInit()
         ItemInstance:mergeWeightSourceInstanceId = Inventory_ItemInstance_Create(ammoTypeId, 3);
 
     InventoryTest_Assert(
-        Inventory_Add(mergeWeightTargetInventoryId, mergeWeightTargetInstanceId) &&
-        Inventory_Add(mergeWeightSourceInventoryId, mergeWeightSourceInstanceId),
+        (Inventory_Add(mergeWeightTargetInventoryId, mergeWeightTargetInstanceId) > 0) &&
+        (Inventory_Add(mergeWeightSourceInventoryId, mergeWeightSourceInstanceId) > 0),
         "Weight-limited cross-inventory merge fixture can be created"
     );
 
     InventoryTest_Assert(
-        !Inventory_MergeStack(mergeWeightTargetInstanceId, mergeWeightSourceInstanceId),
+        !(Inventory_MergeStack(mergeWeightTargetInstanceId, mergeWeightSourceInstanceId) > 0),
         "Cross-inventory merge is rejected when target would exceed maxWeight"
     );
 
@@ -3530,8 +3495,8 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Remove(mergeWeightTargetInventoryId, mergeWeightTargetInstanceId) &&
-        Inventory_Remove(mergeWeightSourceInventoryId, mergeWeightSourceInstanceId) &&
+        (Inventory_Remove(mergeWeightTargetInventoryId, mergeWeightTargetInstanceId) > 0) &&
+        (Inventory_Remove(mergeWeightSourceInventoryId, mergeWeightSourceInstanceId) > 0) &&
         Inventory_ItemInstance_Destroy(mergeWeightTargetInstanceId) &&
         Inventory_ItemInstance_Destroy(mergeWeightSourceInstanceId) &&
         Inventory_Destroy(mergeWeightTargetInventoryId) &&
@@ -3550,9 +3515,15 @@ public OnGameModeInit()
         Inventory_ItemInstance_SetInt(mergeOverflowWeightTargetInstanceId, "merge_key", 1) &&
         Inventory_ItemInstance_SetInt(mergeOverflowWeightSourceInstanceId, "merge_key", 1) &&
         Inventory_ItemInstance_SetInt(mergeOverflowWeightPendingInstanceId, "merge_key", 2) &&
-        Inventory_Add(mergeOverflowWeightTargetInventoryId, mergeOverflowWeightTargetInstanceId) &&
-        Inventory_Add(mergeOverflowWeightSourceInventoryId, mergeOverflowWeightSourceInstanceId) &&
-        Inventory_Add(mergeOverflowWeightTargetInventoryId, mergeOverflowWeightPendingInstanceId) &&
+        (
+            Inventory_Add(mergeOverflowWeightTargetInventoryId, mergeOverflowWeightTargetInstanceId) > 0
+        ) &&
+        (
+            Inventory_Add(mergeOverflowWeightSourceInventoryId, mergeOverflowWeightSourceInstanceId) > 0
+        ) &&
+        (
+            Inventory_Add(mergeOverflowWeightTargetInventoryId, mergeOverflowWeightPendingInstanceId) > 0
+        ) &&
         Inventory_Overflow_GetItemCount(mergeOverflowWeightTargetInventoryId) == 1,
         "Weight-limited merge with a pending target Overflow item can be prepared"
     );
@@ -3563,9 +3534,8 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        !Inventory_MergeStack(
-            mergeOverflowWeightTargetInstanceId,
-            mergeOverflowWeightSourceInstanceId
+        !(
+            Inventory_MergeStack(mergeOverflowWeightTargetInstanceId, mergeOverflowWeightSourceInstanceId) > 0
         ),
         "Cross-inventory merge is rejected after target Overflow restoration leaves insufficient weight capacity"
     );
@@ -3591,8 +3561,12 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Remove(mergeOverflowWeightTargetInventoryId, mergeOverflowWeightTargetInstanceId) &&
-        Inventory_Remove(mergeOverflowWeightSourceInventoryId, mergeOverflowWeightSourceInstanceId) &&
+        (
+            Inventory_Remove(mergeOverflowWeightTargetInventoryId, mergeOverflowWeightTargetInstanceId) > 0
+        ) &&
+        (
+            Inventory_Remove(mergeOverflowWeightSourceInventoryId, mergeOverflowWeightSourceInstanceId) > 0
+        ) &&
         Inventory_ItemInstance_Destroy(mergeOverflowWeightTargetInstanceId) &&
         Inventory_ItemInstance_Destroy(mergeOverflowWeightSourceInstanceId) &&
         Inventory_Destroy(mergeOverflowWeightTargetInventoryId) &&
@@ -3606,13 +3580,13 @@ public OnGameModeInit()
         ItemInstance:mergeWeightDetachedSourceId = Inventory_ItemInstance_Create(ammoTypeId, 3);
 
     InventoryTest_Assert(
-        Inventory_Add(mergeWeightDetachedInventoryId, mergeWeightAttachedTargetId) &&
+        (Inventory_Add(mergeWeightDetachedInventoryId, mergeWeightAttachedTargetId) > 0) &&
         Inventory_ItemInstance_GetInventory(mergeWeightDetachedSourceId) == INVALID_INVENTORY_ID,
         "Weight-limited merge with detached source fixture can be created"
     );
 
     InventoryTest_Assert(
-        !Inventory_MergeStack(mergeWeightAttachedTargetId, mergeWeightDetachedSourceId),
+        !(Inventory_MergeStack(mergeWeightAttachedTargetId, mergeWeightDetachedSourceId) > 0),
         "Merge into a weight-limited inventory rejects a detached source"
     );
 
@@ -3629,7 +3603,7 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Remove(mergeWeightDetachedInventoryId, mergeWeightAttachedTargetId) &&
+        (Inventory_Remove(mergeWeightDetachedInventoryId, mergeWeightAttachedTargetId) > 0) &&
         Inventory_ItemInstance_Destroy(mergeWeightAttachedTargetId) &&
         Inventory_ItemInstance_Destroy(mergeWeightDetachedSourceId) &&
         Inventory_Destroy(mergeWeightDetachedInventoryId),
@@ -3662,7 +3636,7 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Add(heavyInventoryId, heavyInstanceId),
+        (Inventory_Add(heavyInventoryId, heavyInstanceId) > 0),
         "Item is queued when weight exceeds inventory limit"
     );
 
@@ -3689,7 +3663,7 @@ public OnGameModeInit()
             Inventory_ItemInstance_Create(exactWeightTypeId, 1);
 
     InventoryTest_Assert(
-        Inventory_Add(exactWeightInventoryId, exactWeightInstanceId),
+        (Inventory_Add(exactWeightInventoryId, exactWeightInstanceId) > 0),
         "Item is accepted when weight exactly reaches inventory limit"
     );
 
@@ -3736,7 +3710,7 @@ public OnGameModeInit()
             Inventory_ItemInstance_Create(unlimitedWeightTypeId, 1);
 
     InventoryTest_Assert(
-        Inventory_Add(unlimitedWeightInventoryId, zeroWeightInstanceId),
+        (Inventory_Add(unlimitedWeightInventoryId, zeroWeightInstanceId) > 0),
         "Zero max weight behaves as unlimited"
     );
 
@@ -3755,7 +3729,7 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Add(childInventoryId, childInstanceId),
+        (Inventory_Add(childInventoryId, childInstanceId) > 0),
         "Items can be added to a child inventory"
     );
 
@@ -3769,7 +3743,7 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Add(nestedChildInventoryId, nestedChildInstanceId),
+        (Inventory_Add(nestedChildInventoryId, nestedChildInstanceId) > 0),
         "Items can be added to a nested child inventory"
     );
 
@@ -3826,7 +3800,7 @@ public OnGameModeInit()
     InventoryTest_Assert(
         Inventory_IsValid(physicalContainerRootId) &&
         physicalContainerInstanceId != INVALID_ITEM_INSTANCE_ID &&
-        Inventory_Add(physicalContainerRootId, physicalContainerInstanceId, 0),
+        (Inventory_Add(physicalContainerRootId, physicalContainerInstanceId, 0) > 0),
         "A physical container instance can be attached to the root inventory"
     );
 
@@ -3889,14 +3863,14 @@ public OnGameModeInit()
         );
 
     InventoryTest_Assert(
-        Inventory_Add(physicalContainerRootId, stackableContainerTestInstanceId, 1) &&
+        (Inventory_Add(physicalContainerRootId, stackableContainerTestInstanceId, 1) > 0) &&
         Inventory_ItemInstance_CreateContainer(stackableContainerTestInstanceId, 1, 1.0) ==
             INVALID_INVENTORY_ID,
         "A stackable item cannot become a physical container"
     );
 
     InventoryTest_Assert(
-        Inventory_Remove(physicalContainerRootId, stackableContainerTestInstanceId) &&
+        (Inventory_Remove(physicalContainerRootId, stackableContainerTestInstanceId) > 0) &&
         Inventory_ItemInstance_Destroy(stackableContainerTestInstanceId),
         "A rejected stackable container binding leaves the item removable"
     );
@@ -3907,7 +3881,7 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Add(physicalContainerInventoryId, physicalContainerContentInstanceId, 0) &&
+        (Inventory_Add(physicalContainerInventoryId, physicalContainerContentInstanceId, 0) > 0) &&
         Inventory_GetWeight(physicalContainerRootId) == 0.5 &&
         Inventory_GetTotalWeight(physicalContainerInventoryId) == 1.0 &&
         Inventory_GetTotalWeight(physicalContainerRootId) == 1.5,
@@ -3921,7 +3895,7 @@ public OnGameModeInit()
         );
 
     InventoryTest_Assert(
-        Inventory_Add(physicalContainerInventoryId, physicalNestedContainerInstanceId, 1),
+        (Inventory_Add(physicalContainerInventoryId, physicalNestedContainerInstanceId, 1) > 0),
         "A second physical container can be stored inside the first"
     );
 
@@ -3938,7 +3912,7 @@ public OnGameModeInit()
 
     InventoryTest_Assert(
         Inventory_IsValid(physicalNestedInventoryId) &&
-        Inventory_Add(physicalNestedInventoryId, physicalNestedContentInstanceId, 0) &&
+        (Inventory_Add(physicalNestedInventoryId, physicalNestedContentInstanceId, 0) > 0) &&
         floatabs(Inventory_GetTotalWeight(physicalNestedInventoryId) - 0.2) < 0.001 &&
         floatabs(Inventory_GetTotalWeight(physicalContainerInventoryId) - 1.45) < 0.001 &&
         floatabs(Inventory_GetTotalWeight(physicalContainerRootId) - 1.95) < 0.001,
@@ -3951,11 +3925,8 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        !Inventory_Move(
-            physicalContainerRootId,
-            physicalContainerInstanceId,
-            1,
-            physicalNestedInventoryId
+        !(
+            Inventory_Move(physicalContainerRootId, physicalContainerInstanceId, 1, physicalNestedInventoryId) > 0
         ) &&
         Inventory_ItemInstance_GetInventory(physicalContainerInstanceId) == physicalContainerRootId &&
         Inventory_GetParent(physicalContainerInventoryId) == physicalContainerRootId &&
@@ -3979,16 +3950,18 @@ public OnGameModeInit()
         );
 
     InventoryTest_Assert(
-        Inventory_Add(physicalContainerSourceId, physicalContainerSourceInstanceId, 0),
+        (Inventory_Add(physicalContainerSourceId, physicalContainerSourceInstanceId, 0) > 0),
         "A container weight-limit transfer fixture can be created"
     );
 
     InventoryTest_Assert(
-        !Inventory_Move(
-            physicalContainerSourceId,
-            physicalContainerSourceInstanceId,
-            1,
-            physicalContainerInventoryId
+        !(
+            Inventory_Move(
+                physicalContainerSourceId,
+                physicalContainerSourceInstanceId,
+                1,
+                physicalContainerInventoryId
+            ) > 0
         ) &&
         Inventory_GetItemAt(physicalContainerSourceId, 0) == physicalContainerSourceInstanceId &&
         floatabs(Inventory_GetTotalWeight(physicalContainerRootId) - 1.95) < 0.001,
@@ -3996,11 +3969,8 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        !Inventory_Swap(
-            physicalContainerRootId,
-            physicalContainerInstanceId,
-            1,
-            physicalContainerInventoryId
+        !(
+            Inventory_Swap(physicalContainerRootId, physicalContainerInstanceId, 1, physicalContainerInventoryId) > 0
         ) &&
         Inventory_ItemInstance_GetInventory(physicalContainerInstanceId) == physicalContainerRootId &&
         Inventory_GetItemAt(physicalContainerInventoryId, 1) == physicalNestedContainerInstanceId &&
@@ -4010,7 +3980,9 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        !Inventory_Move(physicalContainerRootId, physicalContainerInstanceId, 1, physicalContainerInventoryId) &&
+        !(
+            Inventory_Move(physicalContainerRootId, physicalContainerInstanceId, 1, physicalContainerInventoryId) > 0
+        ) &&
         Inventory_ItemInstance_GetInventory(physicalContainerInstanceId) == physicalContainerRootId &&
         Inventory_GetParent(physicalContainerInventoryId) == physicalContainerRootId,
         "A container cannot be moved into its own content inventory"
@@ -4019,11 +3991,8 @@ public OnGameModeInit()
     new Inventory:physicalContainerTooSmallRootId = Inventory_Create(1, 1.94);
 
     InventoryTest_Assert(
-        !Inventory_Move(
-            physicalContainerRootId,
-            physicalContainerInstanceId,
-            0,
-            physicalContainerTooSmallRootId
+        !(
+            Inventory_Move(physicalContainerRootId, physicalContainerInstanceId, 0, physicalContainerTooSmallRootId) > 0
         ) &&
         Inventory_ItemInstance_GetInventory(physicalContainerInstanceId) == physicalContainerRootId,
         "Cross-inventory container transfer respects total content weight"
@@ -4032,11 +4001,8 @@ public OnGameModeInit()
     new Inventory:physicalContainerDestinationId = Inventory_Create(1, 1.95);
 
     InventoryTest_Assert(
-        Inventory_Move(
-            physicalContainerRootId,
-            physicalContainerInstanceId,
-            0,
-            physicalContainerDestinationId
+        (
+            Inventory_Move(physicalContainerRootId, physicalContainerInstanceId, 0, physicalContainerDestinationId) > 0
         ) &&
         floatabs(Inventory_GetTotalWeight(physicalContainerRootId)) < 0.001 &&
         floatabs(Inventory_GetTotalWeight(physicalContainerDestinationId) - 1.95) < 0.001 &&
@@ -4045,7 +4011,7 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Remove(physicalContainerDestinationId, physicalContainerInstanceId) &&
+        (Inventory_Remove(physicalContainerDestinationId, physicalContainerInstanceId) > 0) &&
         Inventory_GetParent(physicalContainerInventoryId) == INVALID_INVENTORY_ID &&
         floatabs(Inventory_GetTotalWeight(physicalContainerDestinationId)) < 0.001 &&
         floatabs(Inventory_GetTotalWeight(physicalContainerInventoryId) - 1.45) < 0.001 &&
@@ -4064,7 +4030,7 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Add(physicalContainerDestinationId, physicalContainerInstanceId, 0) &&
+        (Inventory_Add(physicalContainerDestinationId, physicalContainerInstanceId, 0) > 0) &&
         Inventory_GetParent(physicalContainerInventoryId) == physicalContainerDestinationId &&
         floatabs(Inventory_GetTotalWeight(physicalContainerDestinationId) - 1.95) < 0.001,
         "Re-adding a detached container restores its recursive weight and relationship"
@@ -4078,7 +4044,7 @@ public OnGameModeInit()
         );
 
     InventoryTest_Assert(
-        Inventory_Add(physicalSwapRootId, physicalSwapContainerInstanceId, 0),
+        (Inventory_Add(physicalSwapRootId, physicalSwapContainerInstanceId, 0) > 0),
         "A second physical container can be placed in a separate inventory for swap"
     );
 
@@ -4095,17 +4061,14 @@ public OnGameModeInit()
 
     InventoryTest_Assert(
         Inventory_IsValid(physicalSwapContainerInventoryId) &&
-        Inventory_Add(physicalSwapContainerInventoryId, physicalSwapContentInstanceId, 0) &&
+        (Inventory_Add(physicalSwapContainerInventoryId, physicalSwapContentInstanceId, 0) > 0) &&
         InventoryTest_FloatEquals(Inventory_GetTotalWeight(physicalSwapRootId), 0.45),
         "A second physical container has independent contents and carried weight"
     );
 
     InventoryTest_Assert(
-        Inventory_Swap(
-            physicalContainerDestinationId,
-            physicalContainerInstanceId,
-            0,
-            physicalSwapRootId
+        (
+            Inventory_Swap(physicalContainerDestinationId, physicalContainerInstanceId, 0, physicalSwapRootId) > 0
         ) &&
         Inventory_GetItemAt(physicalContainerDestinationId, 0) == physicalSwapContainerInstanceId &&
         Inventory_GetItemAt(physicalSwapRootId, 0) == physicalContainerInstanceId &&
@@ -4118,22 +4081,22 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Remove(physicalNestedInventoryId, physicalNestedContentInstanceId) &&
+        (Inventory_Remove(physicalNestedInventoryId, physicalNestedContentInstanceId) > 0) &&
         Inventory_ItemInstance_Destroy(physicalNestedContentInstanceId) &&
-        Inventory_Remove(physicalContainerInventoryId, physicalNestedContainerInstanceId) &&
+        (Inventory_Remove(physicalContainerInventoryId, physicalNestedContainerInstanceId) > 0) &&
         Inventory_ItemInstance_DestroyContainer(physicalNestedContainerInstanceId) &&
         Inventory_ItemInstance_Destroy(physicalNestedContainerInstanceId) &&
-        Inventory_Remove(physicalContainerInventoryId, physicalContainerContentInstanceId) &&
+        (Inventory_Remove(physicalContainerInventoryId, physicalContainerContentInstanceId) > 0) &&
         Inventory_ItemInstance_Destroy(physicalContainerContentInstanceId) &&
-        Inventory_Remove(physicalSwapContainerInventoryId, physicalSwapContentInstanceId) &&
+        (Inventory_Remove(physicalSwapContainerInventoryId, physicalSwapContentInstanceId) > 0) &&
         Inventory_ItemInstance_Destroy(physicalSwapContentInstanceId) &&
-        Inventory_Remove(physicalSwapRootId, physicalContainerInstanceId) &&
+        (Inventory_Remove(physicalSwapRootId, physicalContainerInstanceId) > 0) &&
         Inventory_ItemInstance_DestroyContainer(physicalContainerInstanceId) &&
         Inventory_ItemInstance_Destroy(physicalContainerInstanceId) &&
-        Inventory_Remove(physicalContainerDestinationId, physicalSwapContainerInstanceId) &&
+        (Inventory_Remove(physicalContainerDestinationId, physicalSwapContainerInstanceId) > 0) &&
         Inventory_ItemInstance_DestroyContainer(physicalSwapContainerInstanceId) &&
         Inventory_ItemInstance_Destroy(physicalSwapContainerInstanceId) &&
-        Inventory_Remove(physicalContainerSourceId, physicalContainerSourceInstanceId) &&
+        (Inventory_Remove(physicalContainerSourceId, physicalContainerSourceInstanceId) > 0) &&
         Inventory_ItemInstance_Destroy(physicalContainerSourceInstanceId) &&
         Inventory_Destroy(physicalContainerSourceId) &&
         Inventory_Destroy(physicalSwapRootId) &&
@@ -4170,8 +4133,8 @@ public OnGameModeInit()
 
     InventoryTest_Assert(
         Inventory_IsValid(instanceScopedContainerRootId) &&
-        Inventory_Add(instanceScopedContainerRootId, instanceScopedFirstContainerId, 0) &&
-        Inventory_Add(instanceScopedContainerRootId, instanceScopedSecondContainerId, 1),
+        (Inventory_Add(instanceScopedContainerRootId, instanceScopedFirstContainerId, 0) > 0) &&
+        (Inventory_Add(instanceScopedContainerRootId, instanceScopedSecondContainerId, 1) > 0),
         "Two instances of one container type can be attached independently"
     );
 
@@ -4203,8 +4166,8 @@ public OnGameModeInit()
             Inventory_ItemInstance_Create(instanceScopedContainerContentTypeId, 1);
 
     InventoryTest_Assert(
-        Inventory_Add(instanceScopedFirstInventoryId, instanceScopedFirstContentId, 0) &&
-        Inventory_Add(instanceScopedSecondInventoryId, instanceScopedSecondContentId, 0) &&
+        (Inventory_Add(instanceScopedFirstInventoryId, instanceScopedFirstContentId, 0) > 0) &&
+        (Inventory_Add(instanceScopedSecondInventoryId, instanceScopedSecondContentId, 0) > 0) &&
         Inventory_GetItemAt(instanceScopedFirstInventoryId, 0) == instanceScopedFirstContentId &&
         Inventory_GetItemAt(instanceScopedSecondInventoryId, 0) == instanceScopedSecondContentId &&
         floatabs(Inventory_GetTotalWeight(instanceScopedContainerRootId) - 0.6) < 0.001 &&
@@ -4213,15 +4176,15 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Remove(instanceScopedFirstInventoryId, instanceScopedFirstContentId) &&
+        (Inventory_Remove(instanceScopedFirstInventoryId, instanceScopedFirstContentId) > 0) &&
         Inventory_ItemInstance_Destroy(instanceScopedFirstContentId) &&
-        Inventory_Remove(instanceScopedSecondInventoryId, instanceScopedSecondContentId) &&
+        (Inventory_Remove(instanceScopedSecondInventoryId, instanceScopedSecondContentId) > 0) &&
         Inventory_ItemInstance_Destroy(instanceScopedSecondContentId) &&
         Inventory_ItemInstance_DestroyContainer(instanceScopedFirstContainerId) &&
         Inventory_ItemInstance_DestroyContainer(instanceScopedSecondContainerId) &&
-        Inventory_Remove(instanceScopedContainerRootId, instanceScopedFirstContainerId) &&
+        (Inventory_Remove(instanceScopedContainerRootId, instanceScopedFirstContainerId) > 0) &&
         Inventory_ItemInstance_Destroy(instanceScopedFirstContainerId) &&
-        Inventory_Remove(instanceScopedContainerRootId, instanceScopedSecondContainerId) &&
+        (Inventory_Remove(instanceScopedContainerRootId, instanceScopedSecondContainerId) > 0) &&
         Inventory_ItemInstance_Destroy(instanceScopedSecondContainerId) &&
         Inventory_Destroy(instanceScopedContainerRootId),
         "Independent container instances and their contents can be cleaned up safely"
@@ -4238,7 +4201,7 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Remove(inventoryId, instanceId),
+        (Inventory_Remove(inventoryId, instanceId) > 0),
         "Primary item instance can be removed before destruction"
     );
 
@@ -4253,7 +4216,7 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Overflow_Remove(heavyInventoryId, heavyInstanceId) &&
+        (Inventory_Overflow_Remove(heavyInventoryId, heavyInstanceId) > 0) &&
         Inventory_ItemInstance_Destroy(heavyInstanceId),
         "Overweight item can be detached from Overflow and destroyed"
     );
@@ -4263,12 +4226,12 @@ public OnGameModeInit()
             Inventory_ItemInstance_Create(exactWeightTypeId, 1);
 
     InventoryTest_Assert(
-        Inventory_Add(heavyInventoryId, replacementHeavyInstanceId),
+        (Inventory_Add(heavyInventoryId, replacementHeavyInstanceId) > 0),
         "Inventory accepts an exact-limit item after Overflow removal"
     );
 
     InventoryTest_Assert(
-        Inventory_Remove(heavyInventoryId, replacementHeavyInstanceId) &&
+        (Inventory_Remove(heavyInventoryId, replacementHeavyInstanceId) > 0) &&
         Inventory_GetWeight(heavyInventoryId) == 0.0,
         "Removing a weighted item releases cached inventory weight"
     );
@@ -4278,7 +4241,7 @@ public OnGameModeInit()
             Inventory_ItemInstance_Create(exactWeightTypeId, 1);
 
     InventoryTest_Assert(
-        Inventory_Add(heavyInventoryId, reusedWeightInstanceId),
+        (Inventory_Add(heavyInventoryId, reusedWeightInstanceId) > 0),
         "Released inventory weight can be reused"
     );
 
@@ -4323,12 +4286,12 @@ public OnGameModeInit()
             Inventory_ItemInstance_Create(overflowLightTypeId, 1);
 
     InventoryTest_Assert(
-        Inventory_Add(overflowOrderInventoryId, overflowBlockerInstanceId),
+        (Inventory_Add(overflowOrderInventoryId, overflowBlockerInstanceId) > 0),
         "Overflow order blocker occupies the only inventory slot"
     );
 
     InventoryTest_Assert(
-        Inventory_Add(overflowOrderInventoryId, overflowHeavyInstanceId),
+        (Inventory_Add(overflowOrderInventoryId, overflowHeavyInstanceId) > 0),
         "Heavy item queues when the inventory has no free slot"
     );
 
@@ -4339,7 +4302,7 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Add(overflowOrderInventoryId, overflowLightInstanceId),
+        (Inventory_Add(overflowOrderInventoryId, overflowLightInstanceId) > 0),
         "New item is queued behind a blocked overflow item"
     );
 
@@ -4352,7 +4315,7 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Remove(overflowOrderInventoryId, overflowBlockerInstanceId) &&
+        (Inventory_Remove(overflowOrderInventoryId, overflowBlockerInstanceId) > 0) &&
         Inventory_GetItemCount(overflowOrderInventoryId) == 1 &&
         Inventory_GetWeight(overflowOrderInventoryId) == 2.0 &&
         Inventory_Overflow_GetItemCount(overflowOrderInventoryId) == 1 &&
@@ -4370,7 +4333,7 @@ public OnGameModeInit()
             Inventory_ItemInstance_Create(overflowLightTypeId, 1);
 
     InventoryTest_Assert(
-        Inventory_Add(overflowOrderInventoryId, overflowThirdInstanceId),
+        (Inventory_Add(overflowOrderInventoryId, overflowThirdInstanceId) > 0),
         "New additions remain behind pending overflow items"
     );
 
@@ -4398,35 +4361,34 @@ public OnGameModeInit()
             Inventory_ItemInstance_Create(overflowHeavyTypeId, 1);
 
     InventoryTest_Assert(
-        Inventory_Add(overflowManualInventoryId, overflowManualBlockerInstanceId),
+        (Inventory_Add(overflowManualInventoryId, overflowManualBlockerInstanceId) > 0),
         "Manual Overflow removal blocker can be attached"
     );
 
     InventoryTest_Assert(
-        Inventory_Add(overflowManualInventoryId, overflowManualFirstInstanceId),
+        (Inventory_Add(overflowManualInventoryId, overflowManualFirstInstanceId) > 0),
         "First manual Overflow item can be queued"
     );
 
     InventoryTest_Assert(
-        Inventory_Add(overflowManualInventoryId, overflowManualMiddleInstanceId),
+        (Inventory_Add(overflowManualInventoryId, overflowManualMiddleInstanceId) > 0),
         "Middle manual Overflow item can be queued"
     );
 
     InventoryTest_Assert(
-        Inventory_Add(overflowManualInventoryId, overflowManualTailInstanceId),
+        (Inventory_Add(overflowManualInventoryId, overflowManualTailInstanceId) > 0),
         "Tail manual Overflow item can be queued"
     );
 
     InventoryTest_Assert(
-        !Inventory_Overflow_Remove(invalidInventoryId, overflowManualFirstInstanceId) &&
-        !Inventory_Overflow_Remove(overflowManualInventoryId, invalidInstanceId),
+        !(Inventory_Overflow_Remove(invalidInventoryId, overflowManualFirstInstanceId) > 0) &&
+        !(Inventory_Overflow_Remove(overflowManualInventoryId, invalidInstanceId) > 0),
         "Overflow removal rejects invalid inventory and instance IDs"
     );
 
     InventoryTest_Assert(
-        !Inventory_Remove(
-            overflowManualInventoryId,
-            overflowManualFirstInstanceId
+        !(
+            Inventory_Remove(overflowManualInventoryId, overflowManualFirstInstanceId) > 0
         ) &&
         Inventory_Overflow_GetItemCount(overflowManualInventoryId) == 3 &&
         Inventory_Overflow_GetFirstItem(overflowManualInventoryId) ==
@@ -4435,9 +4397,8 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Overflow_Remove(
-            overflowManualInventoryId,
-            overflowManualMiddleInstanceId
+        (
+            Inventory_Overflow_Remove(overflowManualInventoryId, overflowManualMiddleInstanceId) > 0
         ),
         "Overflow middle item can be removed manually"
     );
@@ -4446,9 +4407,8 @@ public OnGameModeInit()
         Inventory_Overflow_GetItemCount(overflowManualInventoryId) == 2 &&
         Inventory_Overflow_GetFirstItem(overflowManualInventoryId) ==
             overflowManualFirstInstanceId &&
-        !Inventory_Overflow_Remove(
-            overflowManualInventoryId,
-            overflowManualMiddleInstanceId
+        !(
+            Inventory_Overflow_Remove(overflowManualInventoryId, overflowManualMiddleInstanceId) > 0
         ),
         "Manual middle removal preserves the remaining FIFO order"
     );
@@ -4459,9 +4419,8 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Overflow_Remove(
-            overflowManualInventoryId,
-            overflowManualTailInstanceId
+        (
+            Inventory_Overflow_Remove(overflowManualInventoryId, overflowManualTailInstanceId) > 0
         ),
         "Overflow tail item can be removed manually"
     );
@@ -4479,9 +4438,8 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Overflow_Remove(
-            overflowManualInventoryId,
-            overflowManualFirstInstanceId
+        (
+            Inventory_Overflow_Remove(overflowManualInventoryId, overflowManualFirstInstanceId) > 0
         ),
         "Overflow head item can be removed manually"
     );
@@ -4507,29 +4465,25 @@ public OnGameModeInit()
             Inventory_ItemInstance_Create(overflowLightTypeId, 1);
 
     InventoryTest_Assert(
-        Inventory_Add(
-            overflowManualProcessInventoryId,
-            overflowManualProcessBlockerInstanceId
+        (
+            Inventory_Add(overflowManualProcessInventoryId, overflowManualProcessBlockerInstanceId) > 0
         ),
         "Manual Overflow process blocker can be attached"
     );
 
     InventoryTest_Assert(
-        Inventory_Add(
-            overflowManualProcessInventoryId,
-            overflowManualProcessHeadInstanceId
+        (
+            Inventory_Add(overflowManualProcessInventoryId, overflowManualProcessHeadInstanceId) > 0
         ) &&
-        Inventory_Add(
-            overflowManualProcessInventoryId,
-            overflowManualProcessNextInstanceId
+        (
+            Inventory_Add(overflowManualProcessInventoryId, overflowManualProcessNextInstanceId) > 0
         ),
         "Head removal process scenario queues both Overflow items"
     );
 
     InventoryTest_Assert(
-        Inventory_Overflow_Remove(
-            overflowManualProcessInventoryId,
-            overflowManualProcessHeadInstanceId
+        (
+            Inventory_Overflow_Remove(overflowManualProcessInventoryId, overflowManualProcessHeadInstanceId) > 0
         ),
         "Removing the Overflow head succeeds before automatic restoration"
     );
@@ -4549,13 +4503,11 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Remove(
-            overflowManualProcessInventoryId,
-            overflowManualProcessBlockerInstanceId
+        (
+            Inventory_Remove(overflowManualProcessInventoryId, overflowManualProcessBlockerInstanceId) > 0
         ) &&
-        Inventory_Remove(
-            overflowManualProcessInventoryId,
-            overflowManualProcessNextInstanceId
+        (
+            Inventory_Remove(overflowManualProcessInventoryId, overflowManualProcessNextInstanceId) > 0
         ),
         "Head removal process fixtures can be cleaned up"
     );
@@ -4611,27 +4563,26 @@ public OnGameModeInit()
             );
 
     InventoryTest_Assert(
-        Inventory_Add(
-            moveOverflowBlockedDestinationInventoryId,
-            moveOverflowBlockedDestinationItemId
+        (
+            Inventory_Add(moveOverflowBlockedDestinationInventoryId, moveOverflowBlockedDestinationItemId) > 0
         ) &&
-        Inventory_Add(
-            moveOverflowBlockedDestinationInventoryId,
-            moveOverflowPendingItemId
+        (
+            Inventory_Add(moveOverflowBlockedDestinationInventoryId, moveOverflowPendingItemId) > 0
         ) &&
-        Inventory_Add(
-            moveOverflowSourceInventoryId,
-            moveOverflowSourceItemId
+        (
+            Inventory_Add(moveOverflowSourceInventoryId, moveOverflowSourceItemId) > 0
         ),
         "Move destination Overflow scenario is prepared"
     );
 
     InventoryTest_Assert(
-        !Inventory_Move(
-            moveOverflowSourceInventoryId,
-            moveOverflowSourceItemId,
-            INVENTORY_AUTO_SLOT_INDEX,
-            moveOverflowBlockedDestinationInventoryId
+        !(
+            Inventory_Move(
+                moveOverflowSourceInventoryId,
+                moveOverflowSourceItemId,
+                INVENTORY_AUTO_SLOT_INDEX,
+                moveOverflowBlockedDestinationInventoryId
+            ) > 0
         ),
         "Move cannot bypass a blocked destination Overflow queue"
     );
@@ -4675,23 +4626,23 @@ public OnGameModeInit()
             );
 
     InventoryTest_Assert(
-        Inventory_Add(
-            moveOverflowReadyDestinationInventoryId,
-            moveOverflowReadyPendingItemId
+        (
+            Inventory_Add(moveOverflowReadyDestinationInventoryId, moveOverflowReadyPendingItemId) > 0
         ) &&
-        Inventory_Add(
-            moveOverflowSourceInventoryId,
-            moveOverflowReadySourceItemId
+        (
+            Inventory_Add(moveOverflowSourceInventoryId, moveOverflowReadySourceItemId) > 0
         ),
         "Move destination Overflow processing scenario is prepared"
     );
 
     InventoryTest_Assert(
-        Inventory_Move(
-            moveOverflowSourceInventoryId,
-            moveOverflowReadySourceItemId,
-            INVENTORY_AUTO_SLOT_INDEX,
-            moveOverflowReadyDestinationInventoryId
+        (
+            Inventory_Move(
+                moveOverflowSourceInventoryId,
+                moveOverflowReadySourceItemId,
+                INVENTORY_AUTO_SLOT_INDEX,
+                moveOverflowReadyDestinationInventoryId
+            ) > 0
         ),
         "Move processes a fitting destination Overflow before moving"
     );
@@ -4732,13 +4683,11 @@ public OnGameModeInit()
             );
 
     InventoryTest_Assert(
-        Inventory_Add(
-            moveOverflowSourceInventoryId,
-            moveOverflowSourceMovingItemId
+        (
+            Inventory_Add(moveOverflowSourceInventoryId, moveOverflowSourceMovingItemId) > 0
         ) &&
-        Inventory_Add(
-            moveOverflowSourceInventoryId,
-            moveOverflowSourcePendingItemId
+        (
+            Inventory_Add(moveOverflowSourceInventoryId, moveOverflowSourcePendingItemId) > 0
         ) &&
         Inventory_GetItemCount(moveOverflowSourceInventoryId) == 1 &&
         Inventory_Overflow_GetItemCount(moveOverflowSourceInventoryId) == 1 &&
@@ -4748,11 +4697,13 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Move(
-            moveOverflowSourceInventoryId,
-            moveOverflowSourceMovingItemId,
-            INVENTORY_AUTO_SLOT_INDEX,
-            moveOverflowReadyDestinationInventoryId
+        (
+            Inventory_Move(
+                moveOverflowSourceInventoryId,
+                moveOverflowSourceMovingItemId,
+                INVENTORY_AUTO_SLOT_INDEX,
+                moveOverflowReadyDestinationInventoryId
+            ) > 0
         ),
         "Move frees a source slot successfully"
     );
@@ -4767,13 +4718,11 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Remove(
-            moveOverflowSourceInventoryId,
-            moveOverflowSourcePendingItemId
+        (
+            Inventory_Remove(moveOverflowSourceInventoryId, moveOverflowSourcePendingItemId) > 0
         ) &&
-        Inventory_Remove(
-            moveOverflowReadyDestinationInventoryId,
-            moveOverflowSourceMovingItemId
+        (
+            Inventory_Remove(moveOverflowReadyDestinationInventoryId, moveOverflowSourceMovingItemId) > 0
         ) &&
         Inventory_ItemInstance_Destroy(moveOverflowSourcePendingItemId) &&
         Inventory_ItemInstance_Destroy(moveOverflowSourceMovingItemId),
@@ -5347,15 +5296,15 @@ public OnGameModeInit()
     gInventoryTestRemovedEventDetached = false;
 
     InventoryTest_Assert(
-        Inventory_Add(removedEventInventoryId, removedEventMainInstanceId) &&
-        Inventory_Add(removedEventInventoryId, removedEventOverflowInstanceId) &&
+        (Inventory_Add(removedEventInventoryId, removedEventMainInstanceId) > 0) &&
+        (Inventory_Add(removedEventInventoryId, removedEventOverflowInstanceId) > 0) &&
         Inventory_Overflow_GetItemCount(removedEventInventoryId) == 1 &&
         gInventoryTestRemovedEventCalls == 0,
         "Add keeps the Removed lifecycle event silent and queues the second item in Overflow"
     );
 
     InventoryTest_Assert(
-        Inventory_Overflow_Remove(removedEventInventoryId, removedEventOverflowInstanceId) &&
+        (Inventory_Overflow_Remove(removedEventInventoryId, removedEventOverflowInstanceId) > 0) &&
         gInventoryTestRemovedEventCalls == 1 &&
         gInventoryTestRemovedEventInstance == removedEventOverflowInstanceId &&
         gInventoryTestRemovedEventContext == _:removedEventInventoryId &&
@@ -5365,11 +5314,13 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Move(
-            removedEventInventoryId,
-            removedEventMainInstanceId,
-            INVENTORY_AUTO_SLOT_INDEX,
-            removedEventDestinationId
+        (
+            Inventory_Move(
+                removedEventInventoryId,
+                removedEventMainInstanceId,
+                INVENTORY_AUTO_SLOT_INDEX,
+                removedEventDestinationId
+            ) > 0
         ) &&
         gInventoryTestRemovedEventCalls == 1 &&
         Inventory_ItemInstance_GetInventory(removedEventMainInstanceId) == removedEventDestinationId,
@@ -5377,7 +5328,7 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Remove(removedEventDestinationId, removedEventMainInstanceId) &&
+        (Inventory_Remove(removedEventDestinationId, removedEventMainInstanceId) > 0) &&
         gInventoryTestRemovedEventCalls == 2 &&
         gInventoryTestRemovedEventInstance == removedEventMainInstanceId &&
         gInventoryTestRemovedEventContext == _:removedEventDestinationId &&
@@ -5477,7 +5428,7 @@ public OnGameModeInit()
     InventoryTest_Assert(
         Inventory_IsValid(splitEventInventoryId) &&
         Inventory_ItemInstance_IsValid(splitEventAttachedSourceId) &&
-        Inventory_Add(splitEventInventoryId, splitEventAttachedSourceId),
+        (Inventory_Add(splitEventInventoryId, splitEventAttachedSourceId) > 0),
         "Attached split-event source fixture is created"
     );
 
@@ -5546,8 +5497,8 @@ public OnGameModeInit()
     InventoryTest_Assert(
         Inventory_ItemInstance_Destroy(splitEventDetachedSourceId) &&
         Inventory_ItemInstance_Destroy(splitEventDetachedResultId) &&
-        Inventory_Remove(splitEventInventoryId, splitEventAttachedSourceId) &&
-        Inventory_Remove(splitEventInventoryId, splitEventAttachedResultId) &&
+        (Inventory_Remove(splitEventInventoryId, splitEventAttachedSourceId) > 0) &&
+        (Inventory_Remove(splitEventInventoryId, splitEventAttachedResultId) > 0) &&
         Inventory_ItemInstance_Destroy(splitEventAttachedSourceId) &&
         Inventory_ItemInstance_Destroy(splitEventAttachedResultId) &&
         Inventory_ItemInstance_Destroy(splitEventDestroySourceId) &&
@@ -5600,7 +5551,7 @@ public OnGameModeInit()
     gInventoryTestMergedEventInstanceValid = false;
 
     InventoryTest_Assert(
-        Inventory_MergeStack(mergeEventDetachedTargetId, mergeEventDetachedSourceId) &&
+        (Inventory_MergeStack(mergeEventDetachedTargetId, mergeEventDetachedSourceId) > 0) &&
         gInventoryTestMergedEventCalls == 1 &&
         gInventoryTestMergedEventContext == 2 &&
         gInventoryTestMergedEventStack == 5 &&
@@ -5617,7 +5568,7 @@ public OnGameModeInit()
     InventoryTest_Assert(
         Inventory_ItemInstance_IsValid(mergeEventRejectedTargetId) &&
         Inventory_ItemInstance_IsValid(mergeEventRejectedSourceId) &&
-        !Inventory_MergeStack(mergeEventRejectedTargetId, mergeEventRejectedSourceId) &&
+        !(Inventory_MergeStack(mergeEventRejectedTargetId, mergeEventRejectedSourceId) > 0) &&
         gInventoryTestMergedEventCalls == 1 &&
         Inventory_ItemInstance_GetStack(mergeEventRejectedTargetId) == 10 &&
         Inventory_ItemInstance_GetStack(mergeEventRejectedSourceId) == 2,
@@ -5633,8 +5584,8 @@ public OnGameModeInit()
         Inventory_IsValid(mergeEventInventoryId) &&
         Inventory_ItemInstance_SetInt(mergeEventAttachedTargetId, "merge_key", 1) &&
         Inventory_ItemInstance_SetInt(mergeEventAttachedSourceId, "merge_key", 2) &&
-        Inventory_Add(mergeEventInventoryId, mergeEventAttachedTargetId) &&
-        Inventory_Add(mergeEventInventoryId, mergeEventAttachedSourceId) &&
+        (Inventory_Add(mergeEventInventoryId, mergeEventAttachedTargetId) > 0) &&
+        (Inventory_Add(mergeEventInventoryId, mergeEventAttachedSourceId) > 0) &&
         Inventory_GetItemCount(mergeEventInventoryId) == 2 &&
         gInventoryTestMergedEventCalls == 1 &&
         Inventory_ItemInstance_SetInt(mergeEventAttachedSourceId, "merge_key", 1),
@@ -5642,7 +5593,7 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_MergeStack(mergeEventAttachedTargetId, mergeEventAttachedSourceId) &&
+        (Inventory_MergeStack(mergeEventAttachedTargetId, mergeEventAttachedSourceId) > 0) &&
         gInventoryTestMergedEventCalls == 2 &&
         gInventoryTestMergedEventContext == 3 &&
         gInventoryTestMergedEventStack == 7 &&
@@ -5666,16 +5617,16 @@ public OnGameModeInit()
         Inventory_ItemInstance_SetInt(mergeEventCrossTargetId, "merge_key", 1) &&
         Inventory_ItemInstance_SetInt(mergeEventCrossSourceId, "merge_key", 1) &&
         Inventory_ItemInstance_SetInt(mergeEventOverflowItemId, "merge_key", 2) &&
-        Inventory_Add(mergeEventTargetInventoryId, mergeEventCrossTargetId) &&
-        Inventory_Add(mergeEventSourceInventoryId, mergeEventCrossSourceId) &&
-        Inventory_Add(mergeEventSourceInventoryId, mergeEventOverflowItemId) &&
+        (Inventory_Add(mergeEventTargetInventoryId, mergeEventCrossTargetId) > 0) &&
+        (Inventory_Add(mergeEventSourceInventoryId, mergeEventCrossSourceId) > 0) &&
+        (Inventory_Add(mergeEventSourceInventoryId, mergeEventOverflowItemId) > 0) &&
         Inventory_Overflow_GetItemCount(mergeEventSourceInventoryId) == 1 &&
         gInventoryTestMergedEventCalls == 2,
         "Cross-inventory merge fixture has a queued source Overflow item"
     );
 
     InventoryTest_Assert(
-        Inventory_MergeStack(mergeEventCrossTargetId, mergeEventCrossSourceId) &&
+        (Inventory_MergeStack(mergeEventCrossTargetId, mergeEventCrossSourceId) > 0) &&
         gInventoryTestMergedEventCalls == 3 &&
         gInventoryTestMergedEventContext == 3 &&
         gInventoryTestMergedEventStack == 5 &&
@@ -5690,7 +5641,7 @@ public OnGameModeInit()
         ItemInstance:mergeEventPartialSourceId = Inventory_ItemInstance_Create(mergeEventTypeId, 3);
 
     InventoryTest_Assert(
-        Inventory_MergeStack(mergeEventPartialTargetId, mergeEventPartialSourceId) &&
+        (Inventory_MergeStack(mergeEventPartialTargetId, mergeEventPartialSourceId) > 0) &&
         gInventoryTestMergedEventCalls == 4 &&
         gInventoryTestMergedEventContext == 1 &&
         gInventoryTestMergedEventStack == 10 &&
@@ -5715,16 +5666,16 @@ public OnGameModeInit()
         Inventory_ItemInstance_Destroy(mergeEventPartialSourceId) &&
         Inventory_ItemInstance_Destroy(mergeEventRejectedTargetId) &&
         Inventory_ItemInstance_Destroy(mergeEventRejectedSourceId) &&
-        Inventory_Remove(mergeEventInventoryId, mergeEventAttachedTargetId) &&
+        (Inventory_Remove(mergeEventInventoryId, mergeEventAttachedTargetId) > 0) &&
         Inventory_ItemInstance_Destroy(mergeEventAttachedTargetId) &&
         Inventory_Destroy(mergeEventInventoryId),
         "Detached and same-inventory merge-event fixtures can be cleaned up"
     );
 
     InventoryTest_Assert(
-        Inventory_Remove(mergeEventTargetInventoryId, mergeEventCrossTargetId) &&
+        (Inventory_Remove(mergeEventTargetInventoryId, mergeEventCrossTargetId) > 0) &&
         Inventory_ItemInstance_Destroy(mergeEventCrossTargetId) &&
-        Inventory_Remove(mergeEventSourceInventoryId, mergeEventOverflowItemId) &&
+        (Inventory_Remove(mergeEventSourceInventoryId, mergeEventOverflowItemId) > 0) &&
         Inventory_ItemInstance_Destroy(mergeEventOverflowItemId) &&
         Inventory_Destroy(mergeEventTargetInventoryId) &&
         Inventory_Destroy(mergeEventSourceInventoryId),
@@ -5754,7 +5705,7 @@ public OnGameModeInit()
         Map:debugWeightInventoryData;
 
     InventoryTest_Assert(
-        Inventory_Add(debugWeightInventoryId, debugWeightInstanceId),
+        (Inventory_Add(debugWeightInventoryId, debugWeightInstanceId) > 0),
         "Debug weight reconciliation fixture can be created"
     );
 
@@ -5766,14 +5717,18 @@ public OnGameModeInit()
     debugWeightInventoryData = _Inventory_Storage_GetData(
         _Inventory_Record_GetStorage(_Inventory_Record_GetData(debugWeightInventoryId))
     );
-    map_str_set(debugWeightInventoryData, STORAGE_DATA_WEIGHT, 99.0);
+    map_str_set(debugWeightInventoryData, STORAGE_DATA_WEIGHT, 99);
 
     InventoryTest_Assert(
         !Inventory_Debug_Validate(),
         "Framework debug validation detects cached weight mismatch"
     );
 
-    map_str_set(debugWeightInventoryData, STORAGE_DATA_WEIGHT, 0.04);
+    map_str_set(
+        debugWeightInventoryData,
+        STORAGE_DATA_WEIGHT,
+        _Inventory_ItemInstance_GetWeightUnits(debugWeightInstanceId)
+    );
 
     InventoryTest_Assert(
         Inventory_Debug_Validate(),
@@ -5790,7 +5745,11 @@ public OnGameModeInit()
         "Framework debug validation rejects a missing required inventory key"
     );
 
-    map_str_set(debugWeightInventoryData, STORAGE_DATA_WEIGHT, 0.04);
+    map_str_set(
+        debugWeightInventoryData,
+        STORAGE_DATA_WEIGHT,
+        _Inventory_ItemInstance_GetWeightUnits(debugWeightInstanceId)
+    );
 
     InventoryTest_Assert(
         Inventory_Debug_Validate(),
@@ -5798,7 +5757,7 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Remove(debugWeightInventoryId, debugWeightInstanceId) &&
+        (Inventory_Remove(debugWeightInventoryId, debugWeightInstanceId) > 0) &&
         Inventory_ItemInstance_Destroy(debugWeightInstanceId) &&
         Inventory_Destroy(debugWeightInventoryId) &&
         Inventory_Debug_Validate(),
@@ -5811,8 +5770,8 @@ public OnGameModeInit()
         ItemInstance:debugOverflowPendingInstanceId = Inventory_ItemInstance_Create(ammoTypeId, 1);
 
     InventoryTest_Assert(
-        Inventory_Add(debugOverflowInventoryId, debugOverflowMainInstanceId) &&
-        Inventory_Add(debugOverflowInventoryId, debugOverflowPendingInstanceId) &&
+        (Inventory_Add(debugOverflowInventoryId, debugOverflowMainInstanceId) > 0) &&
+        (Inventory_Add(debugOverflowInventoryId, debugOverflowPendingInstanceId) > 0) &&
         Inventory_Overflow_GetItemCount(debugOverflowInventoryId) == 1 &&
         Float:Inventory_GetWeight(debugOverflowInventoryId) == 0.04 &&
         Inventory_Debug_Validate(),
@@ -5820,9 +5779,9 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Overflow_Remove(debugOverflowInventoryId, debugOverflowPendingInstanceId) &&
+        (Inventory_Overflow_Remove(debugOverflowInventoryId, debugOverflowPendingInstanceId) > 0) &&
         Inventory_ItemInstance_Destroy(debugOverflowPendingInstanceId) &&
-        Inventory_Remove(debugOverflowInventoryId, debugOverflowMainInstanceId) &&
+        (Inventory_Remove(debugOverflowInventoryId, debugOverflowMainInstanceId) > 0) &&
         Inventory_ItemInstance_Destroy(debugOverflowMainInstanceId) &&
         Inventory_Destroy(debugOverflowInventoryId) &&
         Inventory_Debug_Validate(),
@@ -5875,15 +5834,15 @@ public OnGameModeInit()
 
     InventoryTest_Assert(
         stage3InventoryId != INVALID_INVENTORY_ID &&
-        Inventory_Add(stage3InventoryId, stage3FirstInstanceId, 0) &&
-        Inventory_Add(stage3InventoryId, stage3SecondInstanceId, 2) &&
+        (Inventory_Add(stage3InventoryId, stage3FirstInstanceId, 0) > 0) &&
+        (Inventory_Add(stage3InventoryId, stage3SecondInstanceId, 2) > 0) &&
         Float:Inventory_GetWeight(stage3InventoryId) == 2.5 &&
         Inventory_Debug_Validate(),
         "Stage 3 slot-move fixture preserves valid weight and item placement"
     );
 
     InventoryTest_Assert(
-        Inventory_Move(stage3InventoryId, stage3FirstInstanceId, 3) &&
+        (Inventory_Move(stage3InventoryId, stage3FirstInstanceId, 3) > 0) &&
         Inventory_GetItemAt(stage3InventoryId, 0) == INVALID_ITEM_INSTANCE_ID &&
         Inventory_GetItemAt(stage3InventoryId, 3) == stage3FirstInstanceId &&
         Float:Inventory_GetWeight(stage3InventoryId) == 2.5 &&
@@ -5892,7 +5851,7 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Move(stage3InventoryId, stage3FirstInstanceId, 2) &&
+        (Inventory_Move(stage3InventoryId, stage3FirstInstanceId, 2) > 0) &&
         Inventory_GetItemAt(stage3InventoryId, 2) == stage3FirstInstanceId &&
         Inventory_GetItemAt(stage3InventoryId, 3) == stage3SecondInstanceId &&
         Float:Inventory_GetWeight(stage3InventoryId) == 2.5 &&
@@ -5901,10 +5860,10 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        !Inventory_Move(stage3InventoryId, stage3FirstInstanceId, 2) &&
-        !Inventory_Move(stage3InventoryId, stage3FirstInstanceId, INVENTORY_AUTO_SLOT_INDEX) &&
-        !Inventory_Move(stage3InventoryId, stage3FirstInstanceId, 4) &&
-        !Inventory_Move(stage3InventoryId, INVALID_ITEM_INSTANCE_ID, 0) &&
+        !(Inventory_Move(stage3InventoryId, stage3FirstInstanceId, 2) > 0) &&
+        !(Inventory_Move(stage3InventoryId, stage3FirstInstanceId, INVENTORY_AUTO_SLOT_INDEX) > 0) &&
+        !(Inventory_Move(stage3InventoryId, stage3FirstInstanceId, 4) > 0) &&
+        !(Inventory_Move(stage3InventoryId, INVALID_ITEM_INSTANCE_ID, 0) > 0) &&
         Inventory_GetItemAt(stage3InventoryId, 2) == stage3FirstInstanceId &&
         Inventory_GetItemAt(stage3InventoryId, 3) == stage3SecondInstanceId &&
         Float:Inventory_GetWeight(stage3InventoryId) == 2.5 &&
@@ -5913,7 +5872,7 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Remove(stage3InventoryId, stage3SecondInstanceId) &&
+        (Inventory_Remove(stage3InventoryId, stage3SecondInstanceId) > 0) &&
         Inventory_ItemInstance_Destroy(stage3SecondInstanceId) &&
         Inventory_GetItemAt(stage3InventoryId, 3) == INVALID_ITEM_INSTANCE_ID &&
         Inventory_GetItemCount(stage3InventoryId) == 1 &&
@@ -5923,7 +5882,7 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        !Inventory_Move(stage3InventoryId, stage3FirstInstanceId, 2, stage3InventoryId) &&
+        !(Inventory_Move(stage3InventoryId, stage3FirstInstanceId, 2, stage3InventoryId) > 0) &&
         Inventory_GetItemAt(stage3InventoryId, 2) == stage3FirstInstanceId &&
         Float:Inventory_GetWeight(stage3InventoryId) == 1.5 &&
         Inventory_Debug_Validate(),
@@ -5931,7 +5890,7 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Remove(stage3InventoryId, stage3FirstInstanceId) &&
+        (Inventory_Remove(stage3InventoryId, stage3FirstInstanceId) > 0) &&
         Inventory_ItemInstance_Destroy(stage3FirstInstanceId) &&
         Inventory_GetItemCount(stage3InventoryId) == 0 &&
         Float:Inventory_GetWeight(stage3InventoryId) == 0.0 &&
@@ -5973,8 +5932,8 @@ public OnGameModeInit()
         Inventory_IsValid(weightRoundingInventoryId) &&
         Inventory_ItemInstance_IsValid(weightRoundingSmallInstanceId) &&
         Inventory_ItemInstance_IsValid(weightRoundingLargeInstanceId) &&
-        Inventory_Add(weightRoundingInventoryId, weightRoundingSmallInstanceId) &&
-        Inventory_Add(weightRoundingInventoryId, weightRoundingLargeInstanceId) &&
+        (Inventory_Add(weightRoundingInventoryId, weightRoundingSmallInstanceId) > 0) &&
+        (Inventory_Add(weightRoundingInventoryId, weightRoundingLargeInstanceId) > 0) &&
         Inventory_GetItemCount(weightRoundingInventoryId) == 2 &&
         Inventory_GetWeight(weightRoundingInventoryId) > 0.0,
         "Floating-point weight-removal fixture can be created"
@@ -5982,8 +5941,8 @@ public OnGameModeInit()
 
     InventoryTest_Assert(
         Inventory_IsValid(weightRoundingInventoryId) &&
-        Inventory_Remove(weightRoundingInventoryId, weightRoundingLargeInstanceId) &&
-        Inventory_Remove(weightRoundingInventoryId, weightRoundingSmallInstanceId) &&
+        (Inventory_Remove(weightRoundingInventoryId, weightRoundingLargeInstanceId) > 0) &&
+        (Inventory_Remove(weightRoundingInventoryId, weightRoundingSmallInstanceId) > 0) &&
         Inventory_GetItemCount(weightRoundingInventoryId) == 0 &&
         Float:Inventory_GetWeight(weightRoundingInventoryId) == 0.0 &&
         Inventory_Debug_Validate(),
@@ -6308,8 +6267,8 @@ public OnGameModeInit()
     InventoryTest_Assert(
         Inventory_ItemType_IsValid(stackWeightContainerTypeId) &&
         Inventory_IsValid(stackWeightRootId) &&
-        Inventory_Add(stackWeightRootId, stackWeightFirstContainerInstanceId, 0) &&
-        Inventory_Add(stackWeightRootId, stackWeightSecondContainerInstanceId, 1),
+        (Inventory_Add(stackWeightRootId, stackWeightFirstContainerInstanceId, 0) > 0) &&
+        (Inventory_Add(stackWeightRootId, stackWeightSecondContainerInstanceId, 1) > 0),
         "Stack-weight physical-container fixtures can be attached to a capacity-limited root"
     );
 
@@ -6338,12 +6297,12 @@ public OnGameModeInit()
         ItemInstance:stackWeightAddedInstanceId = Inventory_ItemInstance_Create(ammoTypeId, 2);
 
     InventoryTest_Assert(
-        Inventory_Add(stackWeightSecondContentsId, stackWeightTargetInstanceId),
+        (Inventory_Add(stackWeightSecondContentsId, stackWeightTargetInstanceId) > 0),
         "Stack-weight target can be stored inside the second physical container"
     );
 
     InventoryTest_Assert(
-        Inventory_Add(stackWeightSecondContentsId, stackWeightAddedInstanceId) &&
+        (Inventory_Add(stackWeightSecondContentsId, stackWeightAddedInstanceId) > 0) &&
         Inventory_ItemInstance_GetStack(stackWeightTargetInstanceId) == 8 &&
         !Inventory_ItemInstance_IsValid(stackWeightAddedInstanceId) &&
         floatabs(Inventory_GetWeight(stackWeightSecondContentsId) - 0.16) < 0.001 &&
@@ -6355,17 +6314,19 @@ public OnGameModeInit()
         ItemInstance:stackWeightMovingInstanceId = Inventory_ItemInstance_Create(ammoTypeId, 2);
 
     InventoryTest_Assert(
-        Inventory_Add(stackWeightFirstContentsId, stackWeightMovingInstanceId) &&
+        (Inventory_Add(stackWeightFirstContentsId, stackWeightMovingInstanceId) > 0) &&
         floatabs(Inventory_GetTotalWeight(stackWeightRootId) - 0.4) < 0.001,
         "A sibling container can bring the root exactly to its carried-weight limit"
     );
 
     InventoryTest_Assert(
-        Inventory_Move(
-            stackWeightFirstContentsId,
-            stackWeightMovingInstanceId,
-            INVENTORY_AUTO_SLOT_INDEX,
-            stackWeightSecondContentsId
+        (
+            Inventory_Move(
+                stackWeightFirstContentsId,
+                stackWeightMovingInstanceId,
+                INVENTORY_AUTO_SLOT_INDEX,
+                stackWeightSecondContentsId
+            ) > 0
         ),
         "Moving a stack between sibling containers succeeds while the shared root is at capacity"
     );
@@ -6401,7 +6362,7 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_MergeStack(stackWeightTargetInstanceId, stackWeightSplitInstanceId) &&
+        (Inventory_MergeStack(stackWeightTargetInstanceId, stackWeightSplitInstanceId) > 0) &&
         Inventory_ItemInstance_GetStack(stackWeightTargetInstanceId) == 10 &&
         !Inventory_ItemInstance_IsValid(stackWeightSplitInstanceId),
         "Merging split stacks restores the original attached stack"
@@ -6417,12 +6378,12 @@ public OnGameModeInit()
     );
 
     InventoryTest_Assert(
-        Inventory_Remove(stackWeightSecondContentsId, stackWeightTargetInstanceId) &&
+        (Inventory_Remove(stackWeightSecondContentsId, stackWeightTargetInstanceId) > 0) &&
         Inventory_ItemInstance_Destroy(stackWeightTargetInstanceId) &&
         Inventory_ItemInstance_DestroyContainer(stackWeightFirstContainerInstanceId) &&
         Inventory_ItemInstance_DestroyContainer(stackWeightSecondContainerInstanceId) &&
-        Inventory_Remove(stackWeightRootId, stackWeightFirstContainerInstanceId) &&
-        Inventory_Remove(stackWeightRootId, stackWeightSecondContainerInstanceId) &&
+        (Inventory_Remove(stackWeightRootId, stackWeightFirstContainerInstanceId) > 0) &&
+        (Inventory_Remove(stackWeightRootId, stackWeightSecondContainerInstanceId) > 0) &&
         Inventory_ItemInstance_Destroy(stackWeightFirstContainerInstanceId) &&
         Inventory_ItemInstance_Destroy(stackWeightSecondContainerInstanceId) &&
         Inventory_Destroy(stackWeightRootId) &&

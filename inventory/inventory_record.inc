@@ -111,6 +111,8 @@ stock Inventory:_Inventory_Record_CreateRoot(
     map_str_set(data, INVENTORY_DATA_STORAGE, storageId);
     map_str_set(data, INVENTORY_DATA_CHILDREN, List:children);
     map_str_set(data, INVENTORY_DATA_OVERFLOW, List:overflowItems);
+    map_str_set(data, INVENTORY_DATA_OVERFLOW_POLICY, INVENTORY_DEFAULT_OVERFLOW_POLICY);
+    map_str_set(data, INVENTORY_DATA_OVERFLOW_LIMIT, INVENTORY_DEFAULT_OVERFLOW_LIMIT);
     map_str_set(data, INVENTORY_DATA_PROPERTIES, properties);
     map_str_set(data, INVENTORY_DATA_CONTAINER_INSTANCE, INVALID_ITEM_INSTANCE_ID);
 
@@ -243,6 +245,36 @@ stock Inventory_GetMaxSlots(
         InventoryStorage:storageId = _Inventory_Record_GetStorage(data);
 
     return _Inventory_Storage_GetSlotCount(storageId);
+}
+
+/* Slot index of an instance held in the primary slots of an Inventory, or -1 (queued, detached or elsewhere). */
+stock Inventory_GetItemSlot(
+    Inventory:inventoryId,
+    ItemInstance:instanceId
+)
+{
+    if (!Inventory_IsValid(inventoryId) || !Inventory_ItemInstance_IsValid(instanceId))
+    {
+        return -1;
+    }
+
+    new
+        Map:data = _Inventory_Record_GetData(inventoryId);
+
+    return _Inventory_Storage_FindInstance(_Inventory_Record_GetStorage(data), instanceId);
+}
+
+/* Slot index of an instance inside the Inventory that holds it, or -1 when it is detached or queued in Overflow. */
+stock Inventory_ItemInstance_GetSlot(
+    ItemInstance:instanceId
+)
+{
+    if (!Inventory_ItemInstance_IsValid(instanceId) || _Inventory_ItemInstance_IsPending(instanceId))
+    {
+        return -1;
+    }
+
+    return Inventory_GetItemSlot(Inventory_ItemInstance_GetInventory(instanceId), instanceId);
 }
 
 stock ItemInstance:Inventory_GetItemAt(
@@ -401,6 +433,59 @@ stock Inventory:Inventory_GetChildAt(
     }
 
     return childId;
+}
+
+/*
+    Pure check of a reparent: both Inventories are valid, the new parent is not the child or one of its descendants,
+    and the relation the move would rewrite is consistent. ReparentChild succeeds whenever this returns true.
+*/
+stock bool:_Inventory_Record_CanReparent(
+    Inventory:childId,
+    Inventory:newParentId
+)
+{
+    if (!Inventory_IsValid(childId) ||
+        (newParentId != INVALID_INVENTORY_ID && !Inventory_IsValid(newParentId)) ||
+        childId == newParentId)
+    {
+        return false;
+    }
+
+    new
+        Inventory:oldParentId = Inventory_GetParent(childId);
+
+    if (oldParentId == newParentId)
+    {
+        return true;
+    }
+
+    new
+        maxDepth = pool_size(_Inventory_Core_GetInventoriesPool()) + 1,
+        Inventory:currentParentId = newParentId;
+
+    for (new depth; currentParentId != INVALID_INVENTORY_ID && depth < maxDepth; depth++)
+    {
+        if (currentParentId == childId)
+        {
+            return false;
+        }
+
+        currentParentId = Inventory_GetParent(currentParentId);
+    }
+
+    if (currentParentId != INVALID_INVENTORY_ID)
+    {
+        return false;
+    }
+
+    if (oldParentId != INVALID_INVENTORY_ID &&
+        list_find<Inventory>(_Inventory_Record_GetChildren(_Inventory_Record_GetData(oldParentId)), childId) == -1)
+    {
+        return false;
+    }
+
+    return newParentId == INVALID_INVENTORY_ID ||
+        list_find<Inventory>(_Inventory_Record_GetChildren(_Inventory_Record_GetData(newParentId)), childId) == -1;
 }
 
 stock bool:_Inventory_Record_ReparentChild(

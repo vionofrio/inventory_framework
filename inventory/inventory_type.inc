@@ -122,6 +122,22 @@ stock ItemType:Inventory_ItemType_Define(
     map_str_set(data, ITEM_TYPE_DATA_PROPERTIES, properties);
     map_str_set(data, ITEM_TYPE_DATA_INSTANCES, List:instances);
 
+#if defined INVENTORY_UNORDERED_TYPE_INSTANCES
+    new
+        Map:instanceIndex = map_new();
+
+    if (!map_valid(instanceIndex))
+    {
+        map_delete_deep(properties);
+        list_delete<ItemInstance>(instances);
+        map_delete_deep(data);
+
+        return INVALID_ITEM_TYPE_ID;
+    }
+
+    map_str_set(data, ITEM_TYPE_DATA_INSTANCE_INDEX, instanceIndex);
+#endif
+
     new
         ItemType:typeId = ItemType:pool_add(
             _Inventory_Core_GetItemTypesPool(),
@@ -261,7 +277,12 @@ stock bool:_Inventory_ItemType_CanTrackInstances(
     return list_valid<ItemInstance>(_Inventory_ItemType_GetInstances(typeId));
 }
 
-/* Records a newly created instance. Only the instance module calls this. */
+/*
+    Records a newly created instance. Only the instance module calls this. By default instances are kept in creation
+    order (Inventory_ItemType_GetInstanceAt documents that order). Defining INVENTORY_UNORDERED_TYPE_INSTANCES before
+    including <inventory> trades that order for O(1) removal: an index Map locates the instance and the last entry is
+    swapped into its place, so destroying N instances of one Type costs O(N) instead of O(N^2).
+*/
 stock bool:_Inventory_ItemType_AddInstance(
     ItemType:typeId,
     ItemInstance:instanceId
@@ -276,6 +297,20 @@ stock bool:_Inventory_ItemType_AddInstance(
     }
 
     list_add<ItemInstance>(instances, instanceId);
+
+#if defined INVENTORY_UNORDERED_TYPE_INSTANCES
+    new
+        Map:instanceIndex = Map:map_str_get(_Inventory_ItemType_GetData(typeId), ITEM_TYPE_DATA_INSTANCE_INDEX);
+
+    if (!map_valid(instanceIndex))
+    {
+        list_remove<ItemInstance>(instances, list_size<ItemInstance>(instances) - 1);
+
+        return false;
+    }
+
+    map_set(instanceIndex, _:instanceId, list_size<ItemInstance>(instances) - 1);
+#endif
 
     return list_find<ItemInstance>(instances, instanceId) != -1;
 }
@@ -294,6 +329,38 @@ stock bool:_Inventory_ItemType_RemoveInstance(
         return false;
     }
 
+#if defined INVENTORY_UNORDERED_TYPE_INSTANCES
+    new
+        Map:instanceIndex = Map:map_str_get(_Inventory_ItemType_GetData(typeId), ITEM_TYPE_DATA_INSTANCE_INDEX);
+
+    if (!map_valid(instanceIndex) || !map_has_key(instanceIndex, _:instanceId))
+    {
+        return false;
+    }
+
+    new
+        removedIndex = map_get(instanceIndex, _:instanceId),
+        lastIndex = list_size<ItemInstance>(instances) - 1;
+
+    if (removedIndex < 0 || removedIndex > lastIndex || list_get<ItemInstance>(instances, removedIndex) != instanceId)
+    {
+        return false;
+    }
+
+    if (removedIndex != lastIndex)
+    {
+        new
+            ItemInstance:movedInstanceId = list_get<ItemInstance>(instances, lastIndex);
+
+        list_set<ItemInstance>(instances, removedIndex, movedInstanceId);
+        map_set(instanceIndex, _:movedInstanceId, removedIndex);
+    }
+
+    list_remove<ItemInstance>(instances, lastIndex);
+    map_remove(instanceIndex, _:instanceId);
+
+    return true;
+#else
     new
         instanceIndex = list_find<ItemInstance>(instances, instanceId);
 
@@ -305,6 +372,7 @@ stock bool:_Inventory_ItemType_RemoveInstance(
     list_remove<ItemInstance>(instances, instanceIndex);
 
     return true;
+#endif
 }
 
 /* Returns the Type defined at typeIndex under the Definition, in definition order. */
@@ -403,18 +471,43 @@ stock Float:Inventory_ItemType_GetWeight(
     return Float:map_str_get(data, ITEM_TYPE_DATA_WEIGHT);
 }
 
-/* Weight of stack units of the Type (0.0 for an invalid Type or a non-positive stack). */
-stock Float:_Inventory_ItemType_CalculateWeight(
+/*
+    Weight of `stack` units of the Type in integer weight units (see INVENTORY_WEIGHT_SCALE). This is the pure weight
+    math: it needs only the Type, so it sits below storage, which maintains the cached Inventory weight. The result
+    saturates at INVENTORY_WEIGHT_UNITS_MAX instead of overflowing.
+*/
+stock _Inventory_ItemType_GetWeightUnits(
     ItemType:typeId,
     stack
 )
 {
     if (!Inventory_ItemType_IsValid(typeId) || stack <= 0)
     {
-        return 0.0;
+        return 0;
     }
 
-    return Inventory_ItemType_GetWeight(typeId) * stack;
+    new
+        Float:unitWeight = Inventory_ItemType_GetWeight(typeId);
+
+    if (unitWeight <= 0.0 || unitWeight * float(INVENTORY_WEIGHT_SCALE) >= float(INVENTORY_WEIGHT_UNITS_MAX))
+    {
+        return unitWeight <= 0.0 ? 0 : INVENTORY_WEIGHT_UNITS_MAX;
+    }
+
+    new
+        unitUnits = floatround(unitWeight * float(INVENTORY_WEIGHT_SCALE), floatround_round);
+
+    if (unitUnits <= 0)
+    {
+        return 0;
+    }
+
+    if (stack > INVENTORY_WEIGHT_UNITS_MAX / unitUnits)
+    {
+        return INVENTORY_WEIGHT_UNITS_MAX;
+    }
+
+    return unitUnits * stack;
 }
 
 stock bool:Inventory_ItemType_SetInt(

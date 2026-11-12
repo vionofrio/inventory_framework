@@ -213,7 +213,7 @@ stock bool:InventoryDemo_GiveHealthPotion(playerid)
         return false;
     }
 
-    if (!Inventory_Add(gDemoPlayerInventories[playerid], instanceId))
+    if (!(Inventory_Add(gDemoPlayerInventories[playerid], instanceId) > 0))
     {
         Inventory_ItemInstance_Destroy(instanceId);
 
@@ -235,7 +235,7 @@ stock bool:InventoryDemo_ClearPlayer(playerid)
     {
         if (inventoryId != INVALID_INVENTORY_ID &&
             Inventory_ItemInstance_GetInventory(instanceId) == inventoryId &&
-            !Inventory_Remove(inventoryId, instanceId))
+            !(Inventory_Remove(inventoryId, instanceId) > 0))
         {
             return false;
         }
@@ -309,7 +309,7 @@ public InventoryDemo_UseHealthPotion(ItemInstance:instanceId, Map:context)
     new
         Inventory:inventoryId = gDemoPlayerInventories[playerid];
 
-    if (!Inventory_Remove(inventoryId, instanceId))
+    if (!(Inventory_Remove(inventoryId, instanceId) > 0))
     {
         SendClientMessage(playerid, -1, "The health potion could not be consumed.");
 

@@ -12,6 +12,8 @@
         - Empty-slot and instance lookup.
         - Validated insertion, removal, movement and swapping.
         - Ownership sync: the only writer of ItemInstance ownership for primary slots (success path only).
+        - Consistency boundary: the item count, the cached local weight (integer units) and the revision are updated
+          only at the success path of the mutations below, so they cannot diverge from slot membership.
         - Storage lifecycle and structural validation.
 */
 
@@ -79,7 +81,7 @@ stock InventoryStorage:_Inventory_Storage_Create(
     map_str_set(data, STORAGE_DATA_SLOTS, List:slots);
     map_str_set(data, STORAGE_DATA_OWNER, INVALID_INVENTORY_ID);
     map_str_set(data, STORAGE_DATA_COUNT, 0);
-    map_str_set(data, STORAGE_DATA_WEIGHT, 0.0);
+    map_str_set(data, STORAGE_DATA_WEIGHT, 0);
     map_str_set(data, STORAGE_DATA_REVISION, 0);
 
     if (!map_has_str_key(data, STORAGE_DATA_SLOTS))
@@ -160,8 +162,8 @@ stock bool:_Inventory_Storage_IsWellFormed(
     new
         Map:data = _Inventory_Storage_GetData(storageId);
 
-    if (!map_valid(data) || !map_has_str_key(data, STORAGE_DATA_SLOTS) ||
-        !map_has_str_key(data, STORAGE_DATA_COUNT) || !map_has_str_key(data, STORAGE_DATA_WEIGHT))
+    if (!map_valid(data) || !map_has_str_key(data, STORAGE_DATA_SLOTS) || !map_has_str_key(data, STORAGE_DATA_COUNT) ||
+        !map_has_str_key(data, STORAGE_DATA_WEIGHT))
     {
         return false;
     }
@@ -175,7 +177,7 @@ stock bool:_Inventory_Storage_IsWellFormed(
         return false;
     }
 
-    return itemCount >= 0 && itemCount <= list_size<ItemInstance>(slots);
+    return itemCount >= 0 && itemCount <= list_size<ItemInstance>(slots) && map_str_get(data, STORAGE_DATA_WEIGHT) >= 0;
 }
 
 stock _Inventory_Storage_GetSlotCount(
@@ -333,14 +335,14 @@ stock _Inventory_Storage_GetItemCount(
     return map_str_get(data, STORAGE_DATA_COUNT);
 }
 
-/* Cached local weight: the sum of the weights of the instances in the slots, maintained at every mutation. */
-stock Float:_Inventory_Storage_GetWeight(
+/* Cached weight of the items in the primary slots, in integer weight units. Maintained at every mutation (O(1)). */
+stock _Inventory_Storage_GetWeightUnits(
     InventoryStorage:storageId
 )
 {
     if (!_Inventory_Storage_IsValid(storageId))
     {
-        return 0.0;
+        return 0;
     }
 
     new
@@ -348,10 +350,10 @@ stock Float:_Inventory_Storage_GetWeight(
 
     if (!map_valid(data) || !map_has_str_key(data, STORAGE_DATA_WEIGHT))
     {
-        return 0.0;
+        return 0;
     }
 
-    return Float:map_str_get(data, STORAGE_DATA_WEIGHT);
+    return map_str_get(data, STORAGE_DATA_WEIGHT);
 }
 
 /* Change counter of the slot collection. It never decreases; see docs/STORAGE_ARCHITECTURE.md invariant 14. */
@@ -375,11 +377,15 @@ stock _Inventory_Storage_GetRevision(
     return map_str_get(data, STORAGE_DATA_REVISION);
 }
 
-/* Records a successful change: adjusts the item count and the cached weight and advances the revision. */
+/*
+    Records a successful change: adjusts the item count and the cached weight and advances the revision. This is the
+    only place that writes the count and the weight, so they always mirror slot membership. Weights are integers, so the
+    cache never drifts; it cannot go negative because every removal subtracts exactly what the insert added.
+*/
 static stock Inventory_Storage_Commit(
     InventoryStorage:storageId,
     countDelta,
-    Float:weightDelta
+    weightDelta = 0
 )
 {
     new
@@ -390,20 +396,12 @@ static stock Inventory_Storage_Commit(
         return;
     }
 
-    new
-        Float:weight = Float:map_str_get(data, STORAGE_DATA_WEIGHT) + weightDelta;
-
-    if (weight < 0.0 && weight > -INVENTORY_WEIGHT_EPSILON)
-    {
-        weight = 0.0;
-    }
-
     map_str_set(data, STORAGE_DATA_COUNT, map_str_get(data, STORAGE_DATA_COUNT) + countDelta);
-    map_str_set(data, STORAGE_DATA_WEIGHT, weight);
+    map_str_set(data, STORAGE_DATA_WEIGHT, map_str_get(data, STORAGE_DATA_WEIGHT) + weightDelta);
     map_str_set(data, STORAGE_DATA_REVISION, map_str_get(data, STORAGE_DATA_REVISION) + 1);
 }
 
-/* Advances the revision without changing slot membership (stack resize of an attached item, Overflow changes). */
+/* Advances the revision without changing slot membership or weight (Overflow queue changes). */
 stock bool:_Inventory_Storage_Touch(
     InventoryStorage:storageId
 )
@@ -413,28 +411,12 @@ stock bool:_Inventory_Storage_Touch(
         return false;
     }
 
-    Inventory_Storage_Commit(storageId, 0, 0.0);
+    Inventory_Storage_Commit(storageId, 0);
 
     return true;
 }
 
-/* An attached item's stack changed by weightDelta: adjusts the cached weight and advances the revision. */
-stock bool:_Inventory_Storage_AdjustWeight(
-    InventoryStorage:storageId,
-    Float:weightDelta
-)
-{
-    if (!_Inventory_Storage_IsValid(storageId))
-    {
-        return false;
-    }
-
-    Inventory_Storage_Commit(storageId, 0, weightDelta);
-
-    return true;
-}
-
-/* Full structural scan (O(slots^2)): unique valid instances and a stored count that matches reality. Debug use. */
+/* Full structural scan (O(slots^2)): unique valid instances, and a stored count and weight that match a recount. */
 stock bool:_Inventory_Storage_IsConsistent(
     InventoryStorage:storageId
 )
@@ -449,6 +431,9 @@ stock bool:_Inventory_Storage_IsConsistent(
         List<ItemInstance>:slots = List<ItemInstance>:map_str_get(data, STORAGE_DATA_SLOTS),
         slotCount = list_size<ItemInstance>(slots);
 
+    new
+        recountedWeight;
+
     for (new slotIndex; slotIndex < slotCount; slotIndex++)
     {
         new
@@ -460,9 +445,15 @@ stock bool:_Inventory_Storage_IsConsistent(
         {
             return false;
         }
+
+        if (instanceId != INVALID_ITEM_INSTANCE_ID)
+        {
+            recountedWeight += _Inventory_ItemInstance_GetWeightUnits(instanceId);
+        }
     }
 
-    return _Inventory_Storage_CountOccupied(storageId) == map_str_get(data, STORAGE_DATA_COUNT);
+    return _Inventory_Storage_CountOccupied(storageId) == map_str_get(data, STORAGE_DATA_COUNT) &&
+        recountedWeight == map_str_get(data, STORAGE_DATA_WEIGHT);
 }
 
 stock bool:_Inventory_Storage_Destroy(
@@ -593,7 +584,7 @@ stock bool:_Inventory_Storage_TryInsert(
         _Inventory_Storage_FindInstance(storageId, instanceId) == slotIndex)
     {
         _Inventory_ItemInstance_SetOwner(instanceId, _Inventory_Storage_GetOwner(storageId), false);
-        Inventory_Storage_Commit(storageId, 1, _Inventory_ItemInstance_CalculateWeight(instanceId));
+        Inventory_Storage_Commit(storageId, 1, _Inventory_ItemInstance_GetWeightUnits(instanceId));
 
         return true;
     }
@@ -628,7 +619,7 @@ stock bool:_Inventory_Storage_TryRemove(
         _Inventory_Storage_FindInstance(storageId, instanceId) == -1)
     {
         _Inventory_ItemInstance_SetOwner(instanceId, INVALID_INVENTORY_ID, false);
-        Inventory_Storage_Commit(storageId, -1, -_Inventory_ItemInstance_CalculateWeight(instanceId));
+        Inventory_Storage_Commit(storageId, -1, -_Inventory_ItemInstance_GetWeightUnits(instanceId));
 
         return true;
     }
@@ -704,17 +695,16 @@ stock bool:_Inventory_Storage_TryMove(
 
     if (sourceStorageId != destinationStorageId)
     {
-        _Inventory_ItemInstance_SetOwner(instanceId, _Inventory_Storage_GetOwner(destinationStorageId), false);
-
         new
-            Float:movedWeight = _Inventory_ItemInstance_CalculateWeight(instanceId);
+            weightUnits = _Inventory_ItemInstance_GetWeightUnits(instanceId);
 
-        Inventory_Storage_Commit(sourceStorageId, -1, -movedWeight);
-        Inventory_Storage_Commit(destinationStorageId, 1, movedWeight);
+        _Inventory_ItemInstance_SetOwner(instanceId, _Inventory_Storage_GetOwner(destinationStorageId), false);
+        Inventory_Storage_Commit(sourceStorageId, -1, -weightUnits);
+        Inventory_Storage_Commit(destinationStorageId, 1, weightUnits);
     }
     else
     {
-        Inventory_Storage_Commit(sourceStorageId, 0, 0.0);
+        Inventory_Storage_Commit(sourceStorageId, 0);
     }
 
     return true;
@@ -768,7 +758,7 @@ stock bool:_Inventory_Storage_TrySwap(
         return false;
     }
 
-    Inventory_Storage_Commit(storageId, 0, 0.0);
+    Inventory_Storage_Commit(storageId, 0);
 
     return true;
 }
@@ -825,15 +815,56 @@ stock bool:_Inventory_Storage_TrySwapAcross(
         return false;
     }
 
+    new
+        firstWeightUnits = _Inventory_ItemInstance_GetWeightUnits(firstInstanceId),
+        secondWeightUnits = _Inventory_ItemInstance_GetWeightUnits(secondInstanceId);
+
     _Inventory_ItemInstance_SetOwner(firstInstanceId, _Inventory_Storage_GetOwner(secondStorageId), false);
     _Inventory_ItemInstance_SetOwner(secondInstanceId, _Inventory_Storage_GetOwner(firstStorageId), false);
+    Inventory_Storage_Commit(firstStorageId, 0, secondWeightUnits - firstWeightUnits);
+    Inventory_Storage_Commit(secondStorageId, 0, firstWeightUnits - secondWeightUnits);
+
+    return true;
+}
+
+/*
+    Changes the stack of an instance held in a primary slot: writes the stack, adjusts the cached weight by exactly the
+    difference and advances the revision (the fifth and last event that changes weight). Capacity policy (maximum
+    weight, carried weight) is decided by the caller before this runs; this only keeps the cache exact.
+*/
+stock bool:_Inventory_Storage_TryResize(
+    InventoryStorage:storageId,
+    ItemInstance:instanceId,
+    stack
+)
+{
+    if (!_Inventory_Storage_IsWellFormed(storageId) ||
+        !Inventory_ItemInstance_IsValid(instanceId) ||
+        stack <= 0 ||
+        _Inventory_Storage_FindInstance(storageId, instanceId) == -1)
+    {
+        return false;
+    }
 
     new
-        Float:firstWeight = _Inventory_ItemInstance_CalculateWeight(firstInstanceId),
-        Float:secondWeight = _Inventory_ItemInstance_CalculateWeight(secondInstanceId);
+        previousStack = Inventory_ItemInstance_GetStack(instanceId),
+        previousWeight = _Inventory_ItemInstance_GetWeightUnits(instanceId);
 
-    Inventory_Storage_Commit(firstStorageId, 0, secondWeight - firstWeight);
-    Inventory_Storage_Commit(secondStorageId, 0, firstWeight - secondWeight);
+    if (previousStack == stack)
+    {
+        return true;
+    }
+
+    _Inventory_ItemInstance_WriteStack(instanceId, stack);
+
+    if (Inventory_ItemInstance_GetStack(instanceId) != stack)
+    {
+        _Inventory_ItemInstance_WriteStack(instanceId, previousStack);
+
+        return false;
+    }
+
+    Inventory_Storage_Commit(storageId, 0, _Inventory_ItemInstance_GetWeightUnits(instanceId) - previousWeight);
 
     return true;
 }

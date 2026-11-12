@@ -189,7 +189,11 @@ stock bool:_Inventory_Container_IsWithinTree(
     return false;
 }
 
-/* Binds a new content inventory to one attached, non-stackable item instance. */
+/*
+    Binds a new content inventory to one non-stackable item instance, attached or detached. A detached container is
+    reparented under the destination Inventory by Inventory_Add (plan, then commit), so a container can be created
+    first and added afterwards without any rollback.
+*/
 stock Inventory:Inventory_ItemInstance_CreateContainer(
     ItemInstance:instanceId,
     maxSlots,
@@ -209,7 +213,6 @@ stock Inventory:Inventory_ItemInstance_CreateContainer(
         ItemType:typeId = Inventory_ItemInstance_GetType(instanceId);
 
     if (!_Inventory_ItemInstance_FindOwner(instanceId, ownerInventoryId) ||
-        ownerInventoryId == INVALID_INVENTORY_ID ||
         !Inventory_ItemType_IsValid(typeId) || Inventory_ItemType_GetMaxStack(typeId) != 1 ||
         Inventory_ItemInstance_GetStack(instanceId) != 1)
     {
@@ -217,7 +220,8 @@ stock Inventory:Inventory_ItemInstance_CreateContainer(
     }
 
     new
-        Inventory:containerInventoryId = Inventory_CreateChild(ownerInventoryId, maxSlots, maxWeight);
+        Inventory:containerInventoryId = ownerInventoryId == INVALID_INVENTORY_ID ?
+            Inventory_Create(maxSlots, maxWeight) : Inventory_CreateChild(ownerInventoryId, maxSlots, maxWeight);
 
     if (!Inventory_IsValid(containerInventoryId))
     {

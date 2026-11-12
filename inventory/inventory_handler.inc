@@ -9,7 +9,8 @@
     Responsibilities:
         - Lifecycle event names and context keys (public constants).
         - Per-Definition event handler registration.
-        - Event dispatch for item instances and framework lifecycle events.
+        - Event dispatch for item instances and framework lifecycle events, including the simple-context helpers that
+          allocate and free the context for the consumer.
 */
 
 /*
@@ -20,6 +21,7 @@
 #define INVENTORY_EVENT_MERGED ("merged")
 
 #define INVENTORY_CONTEXT_INVENTORY_ID ("inventoryId")
+#define INVENTORY_CONTEXT_SLOT_INDEX ("slotIndex")
 #define INVENTORY_CONTEXT_SOURCE_INSTANCE_ID ("sourceInstanceId")
 #define INVENTORY_CONTEXT_TRANSFERRED_AMOUNT ("transferredAmount")
 
@@ -465,15 +467,39 @@ stock bool:_Inventory_Handler_HasHandlers(
     return Inventory_ItemDefinition_GetHandlerCount(Inventory_ItemType_GetDefinition(typeId), event) > 0;
 }
 
-/* Internal lifecycle event emitter. Its temporary context is valid through synchronous dispatch only. */
-stock _Inventory_Handler_TriggerLifecycleEvent(
-    ItemInstance:instanceId,
-    const event[],
-    const contextKey[],
-    AnyTag:contextValue
+/* Stores one context entry; an empty key means "no entry". False only when a requested entry could not be stored. */
+static stock bool:Inventory_Handler_SetContext(
+    Map:context,
+    const key[],
+    AnyTag:value
 )
 {
-    if (!_Inventory_Handler_HasHandlers(instanceId, event))
+    if (key[0] == '\0')
+    {
+        return true;
+    }
+
+    map_str_set(context, key, value);
+
+    return map_has_str_key(context, key);
+}
+
+/*
+    Shared emitter: builds a temporary context with up to three entries (empty keys are skipped), dispatches
+    synchronously and deletes the context. The context is valid through the dispatch only.
+*/
+static stock Inventory_Handler_Emit(
+    ItemInstance:instanceId,
+    const event[],
+    const firstKey[],
+    AnyTag:firstValue,
+    const secondKey[] = "",
+    AnyTag:secondValue = 0,
+    const thirdKey[] = "",
+    AnyTag:thirdValue = 0
+)
+{
+    if (!_Inventory_Core_IsInitialized() || !_Inventory_Handler_HasHandlers(instanceId, event))
     {
         return 0;
     }
@@ -486,9 +512,9 @@ stock _Inventory_Handler_TriggerLifecycleEvent(
         return 0;
     }
 
-    map_str_set(context, contextKey, contextValue);
-
-    if (!map_has_str_key(context, contextKey))
+    if (!Inventory_Handler_SetContext(context, firstKey, firstValue) ||
+        !Inventory_Handler_SetContext(context, secondKey, secondValue) ||
+        !Inventory_Handler_SetContext(context, thirdKey, thirdValue))
     {
         map_delete_deep(context);
 
@@ -501,6 +527,54 @@ stock _Inventory_Handler_TriggerLifecycleEvent(
     map_delete_deep(context);
 
     return attemptedCount;
+}
+
+/*
+    Convenience over Inventory_ItemInstance_TriggerEvent for the common case of a context with at most one entry:
+    the framework allocates and frees the context. Returns the number of handlers attempted. Use TriggerEvent
+    directly when the handlers need a richer context.
+*/
+stock Inventory_ItemInstance_TriggerSimpleEvent(
+    ItemInstance:instanceId,
+    const event[],
+    const contextKey[] = "",
+    AnyTag:contextValue = 0
+)
+{
+    return Inventory_Handler_Emit(instanceId, event, contextKey, contextValue);
+}
+
+/* Internal lifecycle event emitter. Its temporary context is valid through synchronous dispatch only. */
+stock _Inventory_Handler_TriggerLifecycleEvent(
+    ItemInstance:instanceId,
+    const event[],
+    const contextKey[],
+    AnyTag:contextValue
+)
+{
+    return Inventory_Handler_Emit(instanceId, event, contextKey, contextValue);
+}
+
+/* Slot event emitter: the context carries the Inventory, the slot and one optional consumer entry. */
+stock _Inventory_Handler_TriggerSlotEvent(
+    ItemInstance:instanceId,
+    const event[],
+    Inventory:inventoryId,
+    slotIndex,
+    const contextKey[],
+    AnyTag:contextValue
+)
+{
+    return Inventory_Handler_Emit(
+        instanceId,
+        event,
+        INVENTORY_CONTEXT_INVENTORY_ID,
+        inventoryId,
+        INVENTORY_CONTEXT_SLOT_INDEX,
+        slotIndex,
+        contextKey,
+        contextValue
+    );
 }
 
 #undef _INVENTORY_HANDLER_CALLBACK_NAME_SIZE

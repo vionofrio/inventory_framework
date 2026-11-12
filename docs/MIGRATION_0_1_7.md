@@ -96,13 +96,6 @@ the container functions (now in `inventory_container.inc`), `Inventory_Add` / `R
 | `_Inventory_Weight_CanAdd`, `_Add`, `_Remove`, `_Set` | first argument is an `Inventory:` id (was the record `Map:`) |
 | `_Inventory_Weight_Transfer` | source and destination arguments are `Inventory:` ids |
 | `_Inventory_ItemInstance_FindOwner` | replaces the static scan `Inventory_FindInstanceInventory`; same arguments |
-| `_Inventory_Weight_Add`, `_Remove`, `_Transfer`, `_Set` | removed in v0.1.7.3: the storage maintains the weight cache |
-| `_Inventory_Weight_Calculate`, `_Inventory_Weight_GetInstance` | renamed `_Inventory_ItemType_CalculateWeight`, `_Inventory_ItemInstance_CalculateWeight` |
-| `INVENTORY_DATA_WEIGHT` | replaced by `STORAGE_DATA_WEIGHT` (the cache lives in the storage record) |
-| `_Inventory_Attachment_CanSwapAcross` | no longer returns projected weights (two parameters removed) |
-| `_Inventory_Attachment_MoveContainer`, `_MoveItem`, `_MoveStacked`, `_CanSwapAcross`, `_SwapAcross`, `_Merge`, `Inventory_Attachment_RestoreMoveSource` | renamed `_Inventory_Relocation_*` / `Inventory_Relocation_RestoreMoveSource` (v0.1.7.4) |
-| bodies of `Inventory_Move`, `Inventory_Swap`, `Inventory_SplitStack`, `Inventory_MergeStack` | now `_Inventory_Relocation_Move`, `_Swap`, `_Split`, `_MergeStack`; the public functions only dispatch |
-| body of `Inventory_Add` / `Inventory_Overflow_Remove` | now `_Inventory_Attachment_Add` / `_Inventory_Attachment_RemoveQueued` |
 
 ## Example (TextDraw) helpers
 
@@ -122,10 +115,26 @@ the container functions (now in `inventory_container.inc`), `Inventory_Add` / `R
 
 | Old | New |
 | --- | --- |
-| `inventory/inventory_inventory.inc` | `inventory/inventory_record.inc` (plus `container`, `weight`, `stack`, `attachment`, `relocation`, `operations`, `overflow`) |
+| `inventory/inventory_inventory.inc` | `inventory/inventory_record.inc` (plus `container`, `weight`, `stack`, `attachment`, `operations`, `overflow`) |
 | `inventory_*_demo.pwn`, `inventory_textdraw_*.inc` | `examples/` |
 | `inventory_v01_test.pwn`, `inventory_tag_test.pwn`, `filterscripts/inventory_filterscript_test.pwn` | `tests/inventory_framework_test.pwn`, `tests/inventory_tag_test.pwn`, `tests/inventory_filterscript_test.pwn` |
 | `V01_*_CHANGELOG.md` (142 files) | `docs/history/CHANGELOG_V0_1_1_TO_V0_1_6_106.md` (one file) |
 | audits, handoff, old README / PROJECT_STATUS / `V01_TEST_PLAN.md` | `docs/history/` (original wording) |
 | - | new: `docs/TESTING.md`, `docs/STATUS.md`, `pawn.json` |
 | `inventory_persistence_*` and `PERSISTENCE_*.md` | removed (abandoned example) |
+
+## Changes in v0.1.8.0 (internal API)
+
+| Old | New |
+| --- | --- |
+| `INVENTORY_DATA_WEIGHT` (Inventory record) | `STORAGE_DATA_WEIGHT` (storage, integer units) |
+| `INVENTORY_WEIGHT_EPSILON` | removed (integer weights) |
+| `_Inventory_Weight_Calculate`, `_Inventory_Weight_GetInstance` | `_Inventory_ItemType_GetWeightUnits`, `_Inventory_ItemInstance_GetWeightUnits` |
+| `_Inventory_Weight_Add/Remove/Set/Transfer` | removed (storage maintains the cache) |
+| `_Inventory_Weight_CanAdd/CanAddTotal/CanTransferTotal/CanSwapTotal` (Float) | same names, integer units |
+| `_Inventory_Stack_CreateSnapshot/RestoreSnapshot` | removed (plan, then commit) |
+| `_Inventory_Overflow_Push(..., atFront)` | `_Inventory_Overflow_Push(..., position = -1)` |
+| `_Inventory_Attachment_CanSwapAcross(..., &projected...)` | `(sourceInv, sourceInst, destInv, destInst)` |
+| `bool:Inventory_Add/Remove/Move/Swap/MergeStack/Overflow_Remove` | plain integer: `> 0` success, `<= 0` failure (`docs/RESULT_CODES.md`) |
+| `Inventory_SplitStack(id, stack)` | `Inventory_SplitStack(id, stack, &result = 0)` (numeric) |
+| `INVENTORY_OVERFLOW_MAX_ITEMS`, `INVENTORY_OVERFLOW_SKIP_BLOCKED` | `INVENTORY_DEFAULT_OVERFLOW_LIMIT`, `Inventory_Overflow_SetPolicy/SetLimit` |

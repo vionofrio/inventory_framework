@@ -8,8 +8,8 @@
 
     Responsibilities:
         - Stack compatibility, capacity and merge/split rules.
-        - Stack snapshots used to roll back multi-step stack operations.
-        - Updating the stack of an attached instance together with its cached weight.
+        - Pure placement planning over a storage: how much compatible stacks can absorb, and the first free slot.
+        - Updating the stack of an attached instance; the cached weight is kept exact by storage (TryResize).
 */
 
 stock bool:_Inventory_Stack_AreCompatible(
@@ -29,10 +29,7 @@ stock bool:_Inventory_Stack_AreCompatible(
         Map:firstProperties = _Inventory_ItemInstance_GetProperties(firstInstanceId),
         Map:secondProperties = _Inventory_ItemInstance_GetProperties(secondInstanceId);
 
-    if (firstTypeId != secondTypeId ||
-        !Inventory_ItemType_IsValid(firstTypeId) ||
-        !map_valid(firstProperties) ||
-        !map_valid(secondProperties))
+    if (firstTypeId != secondTypeId || !Inventory_ItemType_IsValid(firstTypeId))
     {
         return false;
     }
@@ -67,7 +64,7 @@ stock _Inventory_Stack_GetMax(
     return Inventory_ItemType_GetMaxStack(typeId);
 }
 
-/* Updates an attached primary-slot stack and its local cached weight as one controlled mutation. */
+/* Updates an attached primary-slot stack: checks the weight policy, then storage resizes and keeps its cache exact. */
 stock bool:_Inventory_Stack_SetAttached(
     ItemInstance:instanceId,
     stack
@@ -107,29 +104,17 @@ stock bool:_Inventory_Stack_SetAttached(
     }
 
     new
-        Float:currentWeight = _Inventory_ItemType_CalculateWeight(typeId, currentStack),
-        Float:newWeight = _Inventory_ItemType_CalculateWeight(typeId, stack),
-        Float:weightDelta = newWeight - currentWeight;
+        weightDelta = _Inventory_ItemType_GetWeightUnits(typeId, stack) -
+            _Inventory_ItemType_GetWeightUnits(typeId, currentStack);
 
-    if (weightDelta > 0.0 &&
+    if (weightDelta > 0 &&
         (!_Inventory_Weight_CanAdd(inventoryId, weightDelta) ||
             !_Inventory_Weight_CanAddTotal(inventoryId, weightDelta)))
     {
         return false;
     }
 
-    _Inventory_ItemInstance_WriteStack(instanceId, stack);
-
-    if (Inventory_ItemInstance_GetStack(instanceId) != stack)
-    {
-        _Inventory_ItemInstance_WriteStack(instanceId, currentStack);
-
-        return false;
-    }
-
-    _Inventory_Storage_AdjustWeight(storageId, weightDelta);
-
-    return true;
+    return _Inventory_Storage_TryResize(storageId, instanceId, stack);
 }
 
 stock bool:_Inventory_Stack_Set(
@@ -156,102 +141,6 @@ stock bool:_Inventory_Stack_Set(
     }
 
     return Inventory_ItemInstance_SetStack(instanceId, stack);
-}
-
-stock Map:_Inventory_Stack_CreateSnapshot(
-    InventoryStorage:storageId,
-    ItemInstance:sourceInstanceId
-)
-{
-    if (!_Inventory_Storage_IsValid(storageId) || !Inventory_ItemInstance_IsValid(sourceInstanceId))
-    {
-        return INVALID_MAP;
-    }
-
-    new
-        Map:snapshot = map_new(),
-        slotCount = _Inventory_Storage_GetSlotCount(storageId);
-
-    if (!map_valid(snapshot))
-    {
-        return INVALID_MAP;
-    }
-
-    for (new slotIndex; slotIndex < slotCount; slotIndex++)
-    {
-        new
-            ItemInstance:targetInstanceId = _Inventory_Storage_GetItemAt(storageId, slotIndex);
-
-        if (targetInstanceId == INVALID_ITEM_INSTANCE_ID ||
-            !_Inventory_Stack_AreCompatible(sourceInstanceId, targetInstanceId))
-        {
-            continue;
-        }
-
-        new
-            slotKey[16];
-
-        format(slotKey, sizeof(slotKey), "%d", slotIndex);
-        map_str_set(snapshot, slotKey, _Inventory_Stack_Get(targetInstanceId));
-
-        if (!map_has_str_key(snapshot, slotKey))
-        {
-            map_delete_deep(snapshot);
-
-            return INVALID_MAP;
-        }
-    }
-
-    return snapshot;
-}
-
-stock bool:_Inventory_Stack_RestoreSnapshot(
-    InventoryStorage:storageId,
-    Map:snapshot
-)
-{
-    if (!_Inventory_Storage_IsValid(storageId) || !map_valid(snapshot))
-    {
-        return false;
-    }
-
-    new
-        bool:restored = true,
-        slotCount = _Inventory_Storage_GetSlotCount(storageId);
-
-    for (new slotIndex; slotIndex < slotCount; slotIndex++)
-    {
-        new
-            slotKey[16];
-
-        format(slotKey, sizeof(slotKey), "%d", slotIndex);
-
-        if (!map_has_str_key(snapshot, slotKey))
-        {
-            continue;
-        }
-
-        new
-            ItemInstance:instanceId = _Inventory_Storage_GetItemAt(storageId, slotIndex),
-            originalStack = map_str_get(snapshot, slotKey);
-
-        if (!Inventory_ItemInstance_IsValid(instanceId))
-        {
-            restored = false;
-
-            continue;
-        }
-
-        if (_Inventory_Stack_Get(instanceId) != originalStack &&
-            !_Inventory_Stack_Set(instanceId, originalStack))
-        {
-            restored = false;
-        }
-    }
-
-    map_delete_deep(snapshot);
-
-    return restored;
 }
 
 stock _Inventory_Stack_GetCapacity(
@@ -317,6 +206,82 @@ stock _Inventory_Stack_Add(
     }
 
     return transferStack;
+}
+
+/*
+    Pure planning step: how many units the compatible stacks of a storage can still absorb, and the first free slot.
+    Reads only; nothing is changed.
+*/
+stock _Inventory_Stack_PlanFill(
+    InventoryStorage:storageId,
+    ItemInstance:instanceId,
+    &absorbable,
+    &firstEmptySlot
+)
+{
+    absorbable = 0;
+    firstEmptySlot = -1;
+
+    new
+        slotCount = _Inventory_Storage_GetSlotCount(storageId);
+
+    for (new slotIndex; slotIndex < slotCount; slotIndex++)
+    {
+        new
+            ItemInstance:targetInstanceId = _Inventory_Storage_GetItemAt(storageId, slotIndex);
+
+        if (targetInstanceId == INVALID_ITEM_INSTANCE_ID)
+        {
+            if (firstEmptySlot == -1)
+            {
+                firstEmptySlot = slotIndex;
+            }
+
+            continue;
+        }
+
+        if (targetInstanceId != instanceId && _Inventory_Stack_AreCompatible(instanceId, targetInstanceId))
+        {
+            absorbable += _Inventory_Stack_GetCapacity(targetInstanceId);
+        }
+    }
+}
+
+/* Commit step of a placement plan: pours `amount` into compatible stacks in slot order. Returns what was placed. */
+stock _Inventory_Stack_Fill(
+    InventoryStorage:storageId,
+    ItemInstance:instanceId,
+    amount
+)
+{
+    new
+        remaining = amount,
+        slotCount = _Inventory_Storage_GetSlotCount(storageId);
+
+    for (new slotIndex; slotIndex < slotCount && remaining > 0; slotIndex++)
+    {
+        new
+            ItemInstance:targetInstanceId = _Inventory_Storage_GetItemAt(storageId, slotIndex);
+
+        if (targetInstanceId == INVALID_ITEM_INSTANCE_ID || targetInstanceId == instanceId ||
+            !_Inventory_Stack_AreCompatible(instanceId, targetInstanceId) ||
+            _Inventory_Stack_GetCapacity(targetInstanceId) <= 0)
+        {
+            continue;
+        }
+
+        new
+            transferStack = _Inventory_Stack_Add(targetInstanceId, remaining);
+
+        if (transferStack <= 0)
+        {
+            break;
+        }
+
+        remaining -= transferStack;
+    }
+
+    return amount - remaining;
 }
 
 stock bool:_Inventory_Stack_CanMerge(
@@ -413,19 +378,25 @@ stock ItemInstance:_Inventory_Stack_CreateSplit(
     new
         Map:properties = _Inventory_ItemInstance_GetProperties(instanceId),
         ItemType:typeId = Inventory_ItemInstance_GetType(instanceId),
-        Map:splitProperties = map_clone(properties);
-
-    if (!map_valid(splitProperties))
-    {
-        return INVALID_ITEM_INSTANCE_ID;
-    }
-
-    new
         ItemInstance:splitInstanceId = Inventory_ItemInstance_Create(typeId, stack);
 
     if (splitInstanceId == INVALID_ITEM_INSTANCE_ID)
     {
-        map_delete_deep(splitProperties);
+        return INVALID_ITEM_INSTANCE_ID;
+    }
+
+    /* An instance that never stored a property has no Map to clone; the split starts without one as well. */
+    if (!map_valid(properties))
+    {
+        return splitInstanceId;
+    }
+
+    new
+        Map:splitProperties = map_clone(properties);
+
+    if (!map_valid(splitProperties))
+    {
+        Inventory_ItemInstance_Destroy(splitInstanceId);
 
         return INVALID_ITEM_INSTANCE_ID;
     }

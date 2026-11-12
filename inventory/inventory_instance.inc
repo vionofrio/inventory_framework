@@ -13,6 +13,7 @@
         - Item instance properties: own value, then ItemType, then ItemDefinition (Instance -> Type -> Definition).
         - Explicit override removal (ClearProperty).
         - Item instance structural getters.
+        - Pure instance weight in integer units (the cached Inventory weight is maintained by storage).
 */
 
 /*
@@ -62,27 +63,16 @@ stock ItemInstance:Inventory_ItemInstance_Create(
     }
 
     new
-        Map:instanceData = map_new(),
-        Map:properties = map_new();
+        Map:instanceData = map_new();
 
-    if (!map_valid(instanceData) || !map_valid(properties))
+    if (!map_valid(instanceData))
     {
-        if (map_valid(instanceData))
-        {
-            map_delete_deep(instanceData);
-        }
-
-        if (map_valid(properties))
-        {
-            map_delete_deep(properties);
-        }
-
         return INVALID_ITEM_INSTANCE_ID;
     }
 
+    /* The property Map is created on the first Set (Inventory_ItemInstance_EnsureProperties). */
     map_str_set(instanceData, ITEM_INSTANCE_DATA_TYPE, typeId);
     map_str_set(instanceData, ITEM_INSTANCE_DATA_STACK, stack);
-    map_str_set(instanceData, ITEM_INSTANCE_DATA_PROPERTIES, properties);
     map_str_set(instanceData, ITEM_INSTANCE_DATA_CONTAINER_INVENTORY, INVALID_INVENTORY_ID);
     map_str_set(instanceData, ITEM_INSTANCE_DATA_OWNER_INVENTORY, INVALID_INVENTORY_ID);
     map_str_set(instanceData, ITEM_INSTANCE_DATA_PENDING, false);
@@ -234,7 +224,10 @@ stock bool:_Inventory_ItemInstance_SetOwner(
     use them instead of reading the record Map.
 */
 
-/* Returns the instance's own property Map (INVALID_MAP for an invalid instance). */
+/*
+    Returns the instance's own property Map, or INVALID_MAP for an invalid instance and for an instance that has never
+    stored a property (the Map is created lazily). Readers treat INVALID_MAP as "no own values".
+*/
 stock Map:_Inventory_ItemInstance_GetProperties(
     ItemInstance:instanceId
 )
@@ -247,27 +240,64 @@ stock Map:_Inventory_ItemInstance_GetProperties(
     new
         Map:data = _Inventory_ItemInstance_GetData(instanceId);
 
+    if (!map_has_str_key(data, ITEM_INSTANCE_DATA_PROPERTIES))
+    {
+        return INVALID_MAP;
+    }
+
     return Map:map_str_get(data, ITEM_INSTANCE_DATA_PROPERTIES);
 }
 
-/* Replaces the instance's own property Map. The previous Map is deleted only when both Maps are valid. */
+/* Returns the property Map, creating it on first use (INVALID_MAP only for an invalid instance or on failure). */
+static stock Map:Inventory_ItemInstance_EnsureProperties(
+    ItemInstance:instanceId
+)
+{
+    if (!Inventory_ItemInstance_IsValid(instanceId))
+    {
+        return INVALID_MAP;
+    }
+
+    new
+        Map:properties = _Inventory_ItemInstance_GetProperties(instanceId);
+
+    if (map_valid(properties))
+    {
+        return properties;
+    }
+
+    properties = map_new();
+
+    if (!map_valid(properties))
+    {
+        return INVALID_MAP;
+    }
+
+    map_str_set(_Inventory_ItemInstance_GetData(instanceId), ITEM_INSTANCE_DATA_PROPERTIES, properties);
+
+    return properties;
+}
+
+/* Replaces the instance's own property Map. The previous Map, when there is one, is deleted. */
 stock bool:_Inventory_ItemInstance_ReplaceProperties(
     ItemInstance:instanceId,
     Map:properties
 )
 {
-    new
-        Map:previous = _Inventory_ItemInstance_GetProperties(instanceId);
-
-    if (!map_valid(previous) || !map_valid(properties))
+    if (!Inventory_ItemInstance_IsValid(instanceId) || !map_valid(properties))
     {
         return false;
     }
 
     new
+        Map:previous = _Inventory_ItemInstance_GetProperties(instanceId),
         Map:data = _Inventory_ItemInstance_GetData(instanceId);
 
-    map_delete_deep(previous);
+    if (map_valid(previous))
+    {
+        map_delete_deep(previous);
+    }
+
     map_str_set(data, ITEM_INSTANCE_DATA_PROPERTIES, properties);
 
     return true;
@@ -457,17 +487,17 @@ stock Inventory_ItemInstance_GetStack(
     return map_str_get(data, ITEM_INSTANCE_DATA_STACK);
 }
 
-/* Weight of the instance as it is now: Type weight times its current stack. */
-stock Float:_Inventory_ItemInstance_CalculateWeight(
+/* Pure weight of the instance in integer weight units (stack times the Type weight). */
+stock _Inventory_ItemInstance_GetWeightUnits(
     ItemInstance:instanceId
 )
 {
     if (!Inventory_ItemInstance_IsValid(instanceId))
     {
-        return 0.0;
+        return 0;
     }
 
-    return _Inventory_ItemType_CalculateWeight(
+    return _Inventory_ItemType_GetWeightUnits(
         Inventory_ItemInstance_GetType(instanceId),
         Inventory_ItemInstance_GetStack(instanceId)
     );
@@ -484,10 +514,9 @@ stock Inventory_ItemInstance_GetInt(
     }
 
     new
-        Map:data = _Inventory_ItemInstance_GetData(instanceId),
-        Map:properties = Map:map_str_get(data, ITEM_INSTANCE_DATA_PROPERTIES);
+        Map:properties = _Inventory_ItemInstance_GetProperties(instanceId);
 
-    if (map_has_str_key(properties, key))
+    if (_Inventory_Property_Has(properties, key))
     {
         return _Inventory_Property_GetInt(properties, key);
     }
@@ -506,10 +535,9 @@ stock bool:Inventory_ItemInstance_GetBool(
     }
 
     new
-        Map:data = _Inventory_ItemInstance_GetData(instanceId),
-        Map:properties = Map:map_str_get(data, ITEM_INSTANCE_DATA_PROPERTIES);
+        Map:properties = _Inventory_ItemInstance_GetProperties(instanceId);
 
-    if (map_has_str_key(properties, key))
+    if (_Inventory_Property_Has(properties, key))
     {
         return _Inventory_Property_GetBool(properties, key);
     }
@@ -528,10 +556,9 @@ stock Float:Inventory_ItemInstance_GetFloat(
     }
 
     new
-        Map:data = _Inventory_ItemInstance_GetData(instanceId),
-        Map:properties = Map:map_str_get(data, ITEM_INSTANCE_DATA_PROPERTIES);
+        Map:properties = _Inventory_ItemInstance_GetProperties(instanceId);
 
-    if (map_has_str_key(properties, key))
+    if (_Inventory_Property_Has(properties, key))
     {
         return _Inventory_Property_GetFloat(properties, key);
     }
@@ -550,10 +577,9 @@ stock String:Inventory_ItemInstance_GetString(
     }
 
     new
-        Map:data = _Inventory_ItemInstance_GetData(instanceId),
-        Map:properties = Map:map_str_get(data, ITEM_INSTANCE_DATA_PROPERTIES);
+        Map:properties = _Inventory_ItemInstance_GetProperties(instanceId);
 
-    if (map_has_str_key(properties, key))
+    if (_Inventory_Property_Has(properties, key))
     {
         return _Inventory_Property_GetString(properties, key);
     }
@@ -578,8 +604,7 @@ stock bool:Inventory_ItemInstance_SetInt(
     }
 
     new
-        Map:data = _Inventory_ItemInstance_GetData(instanceId),
-        Map:properties = Map:map_str_get(data, ITEM_INSTANCE_DATA_PROPERTIES);
+        Map:properties = Inventory_ItemInstance_EnsureProperties(instanceId);
 
     return _Inventory_Property_SetInt(properties, key, value);
 }
@@ -601,8 +626,7 @@ stock bool:Inventory_ItemInstance_SetBool(
     }
 
     new
-        Map:data = _Inventory_ItemInstance_GetData(instanceId),
-        Map:properties = Map:map_str_get(data, ITEM_INSTANCE_DATA_PROPERTIES);
+        Map:properties = Inventory_ItemInstance_EnsureProperties(instanceId);
 
     return _Inventory_Property_SetBool(properties, key, value);
 }
@@ -624,8 +648,7 @@ stock bool:Inventory_ItemInstance_SetFloat(
     }
 
     new
-        Map:data = _Inventory_ItemInstance_GetData(instanceId),
-        Map:properties = Map:map_str_get(data, ITEM_INSTANCE_DATA_PROPERTIES);
+        Map:properties = Inventory_ItemInstance_EnsureProperties(instanceId);
 
     return _Inventory_Property_SetFloat(properties, key, value);
 }
@@ -647,8 +670,7 @@ stock bool:Inventory_ItemInstance_SetString(
     }
 
     new
-        Map:data = _Inventory_ItemInstance_GetData(instanceId),
-        Map:properties = Map:map_str_get(data, ITEM_INSTANCE_DATA_PROPERTIES);
+        Map:properties = Inventory_ItemInstance_EnsureProperties(instanceId);
 
     return _Inventory_Property_SetString(properties, key, value);
 }
@@ -670,8 +692,7 @@ stock bool:Inventory_ItemInstance_ClearProperty(
     }
 
     new
-        Map:data = _Inventory_ItemInstance_GetData(instanceId),
-        Map:properties = Map:map_str_get(data, ITEM_INSTANCE_DATA_PROPERTIES);
+        Map:properties = _Inventory_ItemInstance_GetProperties(instanceId);
 
     return _Inventory_Property_Clear(properties, key);
 }
@@ -688,8 +709,7 @@ stock bool:Inventory_ItemInstance_HasProperty(
     }
 
     new
-        Map:data = _Inventory_ItemInstance_GetData(instanceId),
-        Map:properties = Map:map_str_get(data, ITEM_INSTANCE_DATA_PROPERTIES);
+        Map:properties = _Inventory_ItemInstance_GetProperties(instanceId);
 
     return _Inventory_Property_Has(properties, key);
 }

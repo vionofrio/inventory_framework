@@ -1290,7 +1290,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
             return 1;
         }
 
-        if (!Inventory_Remove(inventoryId, instanceId))
+        if (!(Inventory_Remove(inventoryId, instanceId) > 0))
         {
             SendClientMessage(playerid, 0xE7A3A3FF, "The external removal was rejected by the framework.");
 
@@ -1652,7 +1652,7 @@ stock bool:InventoryTextDrawDemo_AddItemAtSlot(
         return false;
     }
 
-    if (!Inventory_Add(inventoryId, instanceId, slotIndex))
+    if (!(Inventory_Add(inventoryId, instanceId, slotIndex) > 0))
     {
         if (Inventory_ItemInstance_IsValid(instanceId) &&
             Inventory_ItemInstance_GetInventory(instanceId) == INVALID_INVENTORY_ID)
@@ -1693,7 +1693,7 @@ stock bool:InventoryTextDrawDemo_SeedOverflow(playerid)
             return false;
         }
 
-        if (!Inventory_Add(inventoryId, fillInstanceId, slotIndex))
+        if (!(Inventory_Add(inventoryId, fillInstanceId, slotIndex) > 0))
         {
             if (Inventory_ItemInstance_IsValid(fillInstanceId) &&
                 Inventory_ItemInstance_GetInventory(fillInstanceId) == INVALID_INVENTORY_ID)
@@ -1748,7 +1748,7 @@ stock bool:InventoryTextDrawDemo_QueueOverflowTestItem(Inventory:inventoryId, It
         return false;
     }
 
-    if (Inventory_Add(inventoryId, instanceId))
+    if ((Inventory_Add(inventoryId, instanceId) > 0))
     {
         return true;
     }
@@ -1780,7 +1780,8 @@ stock bool:InventoryTextDrawDemo_AddContainerAtSlot(
 
     new ItemInstance:instanceId = Inventory_ItemInstance_Create(typeId, 1);
 
-    if (instanceId == INVALID_ITEM_INSTANCE_ID || !Inventory_Add(inventoryId, instanceId, slotIndex))
+    if (instanceId == INVALID_ITEM_INSTANCE_ID ||
+        !(Inventory_Add(inventoryId, instanceId, slotIndex) > 0))
     {
         if (Inventory_ItemInstance_IsValid(instanceId) &&
             Inventory_ItemInstance_GetInventory(instanceId) == INVALID_INVENTORY_ID)
@@ -1798,7 +1799,7 @@ stock bool:InventoryTextDrawDemo_AddContainerAtSlot(
         return true;
     }
 
-    if (Inventory_Remove(inventoryId, instanceId))
+    if ((Inventory_Remove(inventoryId, instanceId) > 0))
     {
         Inventory_ItemInstance_Destroy(instanceId);
     }
@@ -1872,7 +1873,7 @@ stock bool:InventoryTextDrawDemo_ClearInventoryContents(Inventory:inventoryId)
             instanceId = Inventory_Overflow_GetFirstItem(inventoryId);
 
             if (!Inventory_ItemInstance_IsValid(instanceId) ||
-                !Inventory_Overflow_Remove(inventoryId, instanceId) ||
+                !(Inventory_Overflow_Remove(inventoryId, instanceId) > 0) ||
                 !Inventory_ItemInstance_Destroy(instanceId))
             {
                 return false;
@@ -1899,7 +1900,8 @@ stock bool:InventoryTextDrawDemo_ClearInventoryContents(Inventory:inventoryId)
             }
         }
 
-        if (!Inventory_Remove(inventoryId, instanceId) || !Inventory_ItemInstance_Destroy(instanceId))
+        if (!(Inventory_Remove(inventoryId, instanceId) > 0) ||
+            !Inventory_ItemInstance_Destroy(instanceId))
         {
             return false;
         }
@@ -1956,7 +1958,7 @@ stock bool:InventoryTextDrawDemo_DestroyContainerInventory(Inventory:inventoryId
         }
     }
 
-    if (ownerSlotIndex == -1 || !Inventory_Remove(ownerInventoryId, containerInstanceId) ||
+    if (ownerSlotIndex == -1 || !(Inventory_Remove(ownerInventoryId, containerInstanceId) > 0) ||
         !Inventory_ItemInstance_DestroyContainer(containerInstanceId) ||
         !Inventory_ItemInstance_Destroy(containerInstanceId))
     {
@@ -7390,11 +7392,8 @@ stock bool:InventoryTextDrawDemo_MoveSelectedItem(
         return false;
     }
 
-    new bool:moveSucceeded = Inventory_Move(
-        sourceInventoryId,
-        sourceInstanceId,
-        destinationSlotIndex,
-        destinationInventoryId
+    new bool:moveSucceeded = (
+        Inventory_Move(sourceInventoryId, sourceInstanceId, destinationSlotIndex, destinationInventoryId) > 0
     );
 
     if (!moveSucceeded)
@@ -7717,7 +7716,7 @@ stock bool:InventoryTextDrawDemo_MergeSelectedItem(
         return false;
     }
 
-    if (!Inventory_MergeStack(targetInstanceId, sourceInstanceId))
+    if (!(Inventory_MergeStack(targetInstanceId, sourceInstanceId) > 0))
     {
         InventoryTextDrawDemo_Render(playerid);
         SendClientMessage(
@@ -8218,7 +8217,7 @@ stock bool:InventoryTextDrawDemo_TransferSelectedItem(playerid, destinationSlotI
             return false;
         }
 
-        if (!Inventory_MergeStack(targetInstanceId, sourceInstanceId))
+        if (!(Inventory_MergeStack(targetInstanceId, sourceInstanceId) > 0))
         {
             InventoryTextDrawDemo_Render(playerid);
             SendClientMessage(
@@ -8232,7 +8231,9 @@ stock bool:InventoryTextDrawDemo_TransferSelectedItem(playerid, destinationSlotI
 
         merged = true;
     }
-    else if (!Inventory_Move(sourceInventoryId, sourceInstanceId, destinationSlotIndex, destinationInventoryId))
+    else if (!(
+        Inventory_Move(sourceInventoryId, sourceInstanceId, destinationSlotIndex, destinationInventoryId) > 0
+    ))
     {
         InventoryTextDrawDemo_Render(playerid);
         SendClientMessage(
@@ -8995,7 +8996,7 @@ stock bool:InventoryTextDrawDemo_DiscardInstance(
             return false;
         }
 
-        if (!Inventory_Remove(inventoryId, instanceId))
+        if (!(Inventory_Remove(inventoryId, instanceId) > 0))
         {
             return false;
         }
@@ -9007,7 +9008,7 @@ stock bool:InventoryTextDrawDemo_DiscardInstance(
             return false;
         }
     }
-    else if (!Inventory_Remove(inventoryId, instanceId))
+    else if (!(Inventory_Remove(inventoryId, instanceId) > 0))
     {
         return false;
     }

@@ -1,4 +1,4 @@
-# Inventory Framework v0.1.7.4
+# Inventory Framework v0.1.10.0
 
 A server-side inventory framework for open.mp / SA-MP written in Pawn on top of PawnPlus. It models an item *catalog*
 (Category -> Definition -> Type) and runtime *items* (Instance) held in fixed-slot *Inventories* with weight limits,
@@ -41,7 +41,7 @@ Inventory_ItemInstance_GetInventory(item);      // backpack
 | `examples/` | runnable demos: basics, consumables, dialogs, TextDraw UI |
 | `tests/` | regression suites and the PawnPlus tag compile test |
 | `tools/` | `check.py`: static architecture checks (Python 3, no server needed) |
-| `docs/` | guide, architecture, testing, status, storage invariants, migration notes, design notes, `history/` |
+| `docs/` | guide, architecture, testing, status, numeric result codes, storage invariants, migration notes, design notes, `history/` |
 | `pawn.json` | dependency manifest for sampctl (PawnPlus, open.mp includes) |
 
 ## Documentation
@@ -58,5 +58,7 @@ Inventory_ItemInstance_GetInventory(item);      // backpack
 
 ## Status
 
-v0.1.7.1 was compiled and all suites passed (maintainer report). v0.1.7.4 adds audit stage 3a and has been checked by
-`tools/check.py` only; compile and run everything in `tests/` and record the results in `docs/TESTING.md`.
+v0.1.7.1 was compiled and all suites passed (maintainer report). v0.1.10.0 implements the rest of the audit roadmap
+(S3b to S6c) and has been checked by `tools/check.py` only: it was written without a Pawn compiler available. Compile
+everything, run every suite in `tests/` (including the new `inventory_audit_test.pwn`) and record the results in
+`docs/TESTING.md` before relying on it.

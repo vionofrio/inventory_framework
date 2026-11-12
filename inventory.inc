@@ -17,7 +17,6 @@
 #include <inventory/inventory_weight>
 #include <inventory/inventory_stack>
 #include <inventory/inventory_attachment>
-#include <inventory/inventory_relocation>
 #include <inventory/inventory_operations>
 #include <inventory/inventory_debug>
 
@@ -30,7 +29,7 @@
 
         core -> property -> category -> definition -> type -> instance -> handler      (catalog and items)
         storage -> record -> overflow -> container -> weight -> stack                  (inventory structure)
-        attachment -> relocation -> operations -> debug                                (mutations and validation)
+        attachment -> operations -> debug                                              (mutations and validation)
 
     Shared framework state and lifecycle are provided by the core module.
 */

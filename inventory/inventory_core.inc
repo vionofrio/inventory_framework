@@ -67,14 +67,48 @@ const ItemInstance:INVALID_ITEM_INSTANCE_ID = ItemInstance:-1;
 #define INVENTORY_AUTO_SLOT_INDEX (-1)
 
 /*
-    Tolerance used when comparing Float weights. Cached weights are updated incrementally, so a sum can differ from a
-    fresh calculation by a few ulps; every weight comparison in the framework uses this single value. Define it before
-    including <inventory> to change it.
+    Weights are kept as integers internally so that sums never drift. INVENTORY_WEIGHT_SCALE is the number of integer
+    units in one kilogram (default 1,000,000: milligrams). The public API keeps using Float kilograms. A cached weight
+    must fit in one cell, so with the default scale an Inventory can carry about 2,147 kg; define a smaller scale
+    (for example 1000 for grams) before including <inventory> to raise that limit.
 */
-#if !defined INVENTORY_WEIGHT_EPSILON
-    #define INVENTORY_WEIGHT_EPSILON (0.001)
+#if !defined INVENTORY_WEIGHT_SCALE
+    #define INVENTORY_WEIGHT_SCALE (1000000)
 #endif
 
+#define INVENTORY_WEIGHT_UNITS_MAX (cellmax)
+
+/*
+    Overflow policy, set per Inventory (Inventory_Overflow_SetPolicy / SetLimit). When an Add finds no slot:
+        REJECT                - the Add fails immediately and nothing is queued (typical for player inventories);
+        QUEUE                 - the item waits in the Overflow queue (FIFO) and enters when room appears; draining stops
+                                at the first item that does not fit, which preserves arrival order (head-of-line
+                                blocking is intentional);
+        QUEUE_SKIP_BLOCKED    - like QUEUE, but smaller items behind a blocked head may enter.
+    The queue length is bounded by the Overflow limit (0 = unbounded). New Inventories start with the defaults below,
+    which a consumer may redefine before including <inventory>.
+*/
+enum e_INVENTORY_OVERFLOW_POLICY
+{
+    INVENTORY_OVERFLOW_REJECT,
+    INVENTORY_OVERFLOW_QUEUE,
+    INVENTORY_OVERFLOW_QUEUE_SKIP_BLOCKED
+}
+
+#if !defined INVENTORY_DEFAULT_OVERFLOW_POLICY
+    #define INVENTORY_DEFAULT_OVERFLOW_POLICY (INVENTORY_OVERFLOW_QUEUE)
+#endif
+
+#if !defined INVENTORY_DEFAULT_OVERFLOW_LIMIT
+    #define INVENTORY_DEFAULT_OVERFLOW_LIMIT (256)
+#endif
+
+/*
+    Numeric results. The mutating public functions (Inventory_Add, Remove, Move, Swap, MergeStack, Overflow_Remove,
+    DestroyItem, Clear, DestroyRecursive and the optional out parameter of SplitStack) return a plain integer:
+    a value > 0 is a success and a value <= 0 is a failure. The meaning of each value is documented in
+    docs/RESULT_CODES.md; a named enumeration is intentionally left for later.
+*/
 /*
     Internal data keys shared by the remaining domain modules.
 */
@@ -83,14 +117,16 @@ const ItemInstance:INVALID_ITEM_INSTANCE_ID = ItemInstance:-1;
 #define INVENTORY_DATA_STORAGE "storage_id"
 #define INVENTORY_DATA_CHILDREN "children"
 #define INVENTORY_DATA_OVERFLOW "overflow"
+#define INVENTORY_DATA_OVERFLOW_POLICY "overflow_policy"
+#define INVENTORY_DATA_OVERFLOW_LIMIT "overflow_limit"
 #define INVENTORY_DATA_PROPERTIES "properties"
 #define INVENTORY_DATA_CONTAINER_INSTANCE "container_instance"
 
 #define STORAGE_DATA_SLOTS "slots"
 #define STORAGE_DATA_OWNER "owner"
 #define STORAGE_DATA_COUNT "count"
+#define STORAGE_DATA_WEIGHT "weight_units"
 #define STORAGE_DATA_REVISION "revision"
-#define STORAGE_DATA_WEIGHT "weight"
 
 #define ITEM_CATEGORY_DATA_KEY "key"
 #define ITEM_CATEGORY_DATA_NAME "name"
@@ -113,6 +149,7 @@ const ItemInstance:INVALID_ITEM_INSTANCE_ID = ItemInstance:-1;
 #define ITEM_TYPE_DATA_WEIGHT "weight"
 #define ITEM_TYPE_DATA_PROPERTIES "properties"
 #define ITEM_TYPE_DATA_INSTANCES "instances"
+#define ITEM_TYPE_DATA_INSTANCE_INDEX "instance_index"
 
 #define ITEM_INSTANCE_DATA_TYPE "type"
 #define ITEM_INSTANCE_DATA_STACK "stack"

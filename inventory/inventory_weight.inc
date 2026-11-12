@@ -7,32 +7,121 @@
     Inventory Framework Weight Module
 
     Responsibilities:
-        - Local weight policy (can-add) and getters; the cached local weight itself is maintained by the storage.
-        - Weight getters: Inventory_GetMaxWeight, Inventory_GetWeight and Inventory_GetTotalWeight.
-        - Total (carried) weight across nested containers, including capacity checks for add, transfer and swap.
+        - Read-only weight policy in integer units: local capacity checks and the carried (total) weight across nested
+          containers, including capacity checks for add, transfer and swap.
+        - Weight getters: Inventory_GetMaxWeight, Inventory_GetWeight and Inventory_GetTotalWeight (Float kilograms).
+        - The cached local weight itself is maintained by storage, at the same place that changes membership; this
+          module never writes it. The pure calculation lives with the Type and the instance.
 */
 
-stock bool:_Inventory_Weight_CanAdd(
-    Inventory:inventoryId,
-    Float:weight
+/* Converts integer weight units to Float kilograms (public API). */
+stock Float:_Inventory_Weight_ToKilograms(
+    units
 )
 {
-    new
-        Map:inventoryData = _Inventory_Record_GetData(inventoryId);
+    return float(units) / float(INVENTORY_WEIGHT_SCALE);
+}
 
-    if (!map_valid(inventoryData) || weight < 0.0)
+/* Converts a Float kilogram value to integer units, rounded and saturated at INVENTORY_WEIGHT_UNITS_MAX. */
+stock _Inventory_Weight_ToUnits(
+    Float:kilograms
+)
+{
+    if (kilograms <= 0.0)
+    {
+        return 0;
+    }
+
+    if (kilograms * float(INVENTORY_WEIGHT_SCALE) >= float(INVENTORY_WEIGHT_UNITS_MAX))
+    {
+        return INVENTORY_WEIGHT_UNITS_MAX;
+    }
+
+    return floatround(kilograms * float(INVENTORY_WEIGHT_SCALE), floatround_round);
+}
+
+/* Cached local weight of an Inventory in integer units (0 for an invalid Inventory). */
+stock _Inventory_Weight_GetUnits(
+    Inventory:inventoryId
+)
+{
+    if (!Inventory_IsValid(inventoryId))
+    {
+        return 0;
+    }
+
+    return _Inventory_Storage_GetWeightUnits(_Inventory_Record_GetStorage(_Inventory_Record_GetData(inventoryId)));
+}
+
+/* Maximum weight in integer units; 0 means unlimited. */
+stock _Inventory_Weight_GetMaxUnits(
+    Inventory:inventoryId
+)
+{
+    if (!Inventory_IsValid(inventoryId))
+    {
+        return 0;
+    }
+
+    new
+        Map:data = _Inventory_Record_GetData(inventoryId);
+
+    return _Inventory_Weight_ToUnits(Float:map_str_get(data, INVENTORY_DATA_MAX_WEIGHT));
+}
+
+/*
+    True when `current + add` stays within `maxUnits` (0 = unlimited) without overflowing one cell. The comparison is
+    written as `add <= max - current` so no intermediate sum can wrap.
+*/
+static stock bool:Inventory_Weight_Fits(
+    current,
+    add,
+    maxUnits
+)
+{
+    if (add < 0 || current < 0 || add > INVENTORY_WEIGHT_UNITS_MAX - current)
+    {
+        return false;
+    }
+
+    return maxUnits <= 0 || (current <= maxUnits && add <= maxUnits - current);
+}
+
+/* Capacity check of the local weight of one Inventory (does not consider containers above or below it). */
+stock bool:_Inventory_Weight_CanAdd(
+    Inventory:inventoryId,
+    weightUnits
+)
+{
+    if (!Inventory_IsValid(inventoryId))
+    {
+        return false;
+    }
+
+    return Inventory_Weight_Fits(
+        _Inventory_Weight_GetUnits(inventoryId),
+        weightUnits,
+        _Inventory_Weight_GetMaxUnits(inventoryId)
+    );
+}
+
+/* Capacity check of replacing `removedUnits` of local weight by `addedUnits` (swap): the projected weight must fit. */
+stock bool:_Inventory_Weight_CanReplace(
+    Inventory:inventoryId,
+    removedUnits,
+    addedUnits
+)
+{
+    if (!Inventory_IsValid(inventoryId) || removedUnits < 0 || addedUnits < 0)
     {
         return false;
     }
 
     new
-        Float:currentWeight = _Inventory_Storage_GetWeight(_Inventory_Record_GetStorage(inventoryData)),
-        Float:maxWeight = Float:map_str_get(
-            inventoryData,
-            INVENTORY_DATA_MAX_WEIGHT
-        );
+        currentUnits = _Inventory_Weight_GetUnits(inventoryId) - removedUnits;
 
-    return maxWeight <= 0.0 || currentWeight + weight <= maxWeight;
+    return currentUnits >= 0 &&
+        Inventory_Weight_Fits(currentUnits, addedUnits, _Inventory_Weight_GetMaxUnits(inventoryId));
 }
 
 stock Float:Inventory_GetMaxWeight(
@@ -55,18 +144,10 @@ stock Float:Inventory_GetWeight(
     Inventory:inventoryId
 )
 {
-    if (!Inventory_IsValid(inventoryId))
-    {
-        return 0.0;
-    }
-
-    new
-        Map:data = _Inventory_Record_GetData(inventoryId);
-
-    return _Inventory_Storage_GetWeight(_Inventory_Record_GetStorage(data));
+    return _Inventory_Weight_ToKilograms(_Inventory_Weight_GetUnits(inventoryId));
 }
 
-static stock Float:Inventory_Weight_GetTotal(
+static stock Inventory_Weight_GetTotal(
     Inventory:inventoryId,
     depth,
     maxDepth
@@ -74,11 +155,11 @@ static stock Float:Inventory_Weight_GetTotal(
 {
     if (!Inventory_IsValid(inventoryId) || depth >= maxDepth)
     {
-        return 0.0;
+        return 0;
     }
 
     new
-        Float:totalWeight = Inventory_GetWeight(inventoryId),
+        totalUnits = _Inventory_Weight_GetUnits(inventoryId),
         childCount = Inventory_GetChildCount(inventoryId);
 
     /*
@@ -97,10 +178,27 @@ static stock Float:Inventory_Weight_GetTotal(
             continue;
         }
 
-        totalWeight += Inventory_Weight_GetTotal(containerInventoryId, depth + 1, maxDepth);
+        new
+            childUnits = Inventory_Weight_GetTotal(containerInventoryId, depth + 1, maxDepth);
+
+        totalUnits = childUnits > INVENTORY_WEIGHT_UNITS_MAX - totalUnits ? INVENTORY_WEIGHT_UNITS_MAX :
+            totalUnits + childUnits;
     }
 
-    return totalWeight;
+    return totalUnits;
+}
+
+/* Local weight plus the contents of physical item containers in the primary slots, in integer units. */
+stock _Inventory_Weight_GetTotalUnits(
+    Inventory:inventoryId
+)
+{
+    if (!Inventory_IsValid(inventoryId))
+    {
+        return 0;
+    }
+
+    return Inventory_Weight_GetTotal(inventoryId, 0, pool_size(_Inventory_Core_GetInventoriesPool()) + 1);
 }
 
 /*
@@ -111,73 +209,69 @@ stock Float:Inventory_GetTotalWeight(
     Inventory:inventoryId
 )
 {
-    if (!Inventory_IsValid(inventoryId))
-    {
-        return 0.0;
-    }
-
-    new
-        Pool:inventoriesPool = _Inventory_Core_GetInventoriesPool(),
-        maxDepth = pool_size(inventoriesPool) + 1;
-
-    return Inventory_Weight_GetTotal(inventoryId, 0, maxDepth);
+    return _Inventory_Weight_ToKilograms(_Inventory_Weight_GetTotalUnits(inventoryId));
 }
 
-stock Float:_Inventory_Weight_GetInstanceTotal(
+/* Weight of the instance plus the carried contents of its container, in integer units. */
+stock _Inventory_Weight_GetInstanceTotalUnits(
     ItemInstance:instanceId
 )
 {
     if (!Inventory_ItemInstance_IsValid(instanceId))
     {
-        return 0.0;
+        return 0;
     }
 
     new
-        Float:instanceWeight = _Inventory_ItemInstance_CalculateWeight(instanceId),
+        instanceUnits = _Inventory_ItemInstance_GetWeightUnits(instanceId),
         Inventory:containerInventoryId = Inventory_ItemInstance_GetContainerInventory(instanceId);
 
     if (Inventory_IsValid(containerInventoryId))
     {
-        instanceWeight += Inventory_GetTotalWeight(containerInventoryId);
+        new
+            carriedUnits = _Inventory_Weight_GetTotalUnits(containerInventoryId);
+
+        instanceUnits = carriedUnits > INVENTORY_WEIGHT_UNITS_MAX - instanceUnits ? INVENTORY_WEIGHT_UNITS_MAX :
+            instanceUnits + carriedUnits;
     }
 
-    return instanceWeight;
+    return instanceUnits;
 }
 
+/*
+    Carried-weight capacity check along the chain of bound container parents. When removedInventoryId is given, the
+    weight leaving that tree (removedUnits) is discounted for every ancestor that contains it.
+*/
 stock bool:_Inventory_Weight_CanAddTotal(
     Inventory:inventoryId,
-    Float:weight,
+    weightUnits,
     Inventory:removedInventoryId = INVALID_INVENTORY_ID,
-    Float:removedWeight = 0.0
+    removedUnits = 0
 )
 {
-    if (!Inventory_IsValid(inventoryId) || weight < 0.0 || removedWeight < 0.0 ||
+    if (!Inventory_IsValid(inventoryId) || weightUnits < 0 || removedUnits < 0 ||
         (removedInventoryId != INVALID_INVENTORY_ID && !Inventory_IsValid(removedInventoryId)))
     {
         return false;
     }
 
     new
-        Pool:inventoriesPool = _Inventory_Core_GetInventoriesPool(),
-        maxDepth = pool_size(inventoriesPool) + 1,
+        maxDepth = pool_size(_Inventory_Core_GetInventoriesPool()) + 1,
         Inventory:currentInventoryId = inventoryId;
 
     for (new depth; depth < maxDepth; depth++)
     {
         new
-            Float:currentWeight = Inventory_GetTotalWeight(currentInventoryId),
-            Float:maxWeight = Inventory_GetMaxWeight(currentInventoryId);
+            currentUnits = _Inventory_Weight_GetTotalUnits(currentInventoryId);
 
         if (removedInventoryId != INVALID_INVENTORY_ID &&
             _Inventory_Container_IsWithinTree(removedInventoryId, currentInventoryId))
         {
-            currentWeight -= removedWeight;
+            currentUnits -= removedUnits;
         }
 
-        new Float:projectedWeight = currentWeight + weight;
-
-        if (projectedWeight < -INVENTORY_WEIGHT_EPSILON ||
-            (maxWeight > 0.0 && projectedWeight > maxWeight + INVENTORY_WEIGHT_EPSILON))
+        if (currentUnits < 0 ||
+            !Inventory_Weight_Fits(currentUnits, weightUnits, _Inventory_Weight_GetMaxUnits(currentInventoryId)))
         {
             return false;
         }
@@ -196,17 +290,17 @@ stock bool:_Inventory_Weight_CanAddTotal(
 stock bool:_Inventory_Weight_CanTransferTotal(
     Inventory:sourceInventoryId,
     Inventory:destinationInventoryId,
-    Float:weight
+    weightUnits
 )
 {
-    if (!Inventory_IsValid(destinationInventoryId) || weight < 0.0)
+    if (!Inventory_IsValid(destinationInventoryId) || weightUnits < 0)
     {
         return false;
     }
 
     if (sourceInventoryId == INVALID_INVENTORY_ID)
     {
-        return _Inventory_Weight_CanAddTotal(destinationInventoryId, weight);
+        return _Inventory_Weight_CanAddTotal(destinationInventoryId, weightUnits);
     }
 
     if (!Inventory_IsValid(sourceInventoryId))
@@ -214,72 +308,30 @@ stock bool:_Inventory_Weight_CanTransferTotal(
         return false;
     }
 
-    return _Inventory_Weight_CanAddTotal(
-        destinationInventoryId,
-        weight,
-        sourceInventoryId,
-        weight
-    );
+    return _Inventory_Weight_CanAddTotal(destinationInventoryId, weightUnits, sourceInventoryId, weightUnits);
 }
 
-stock bool:_Inventory_Weight_CanSwapTotal(
-    Inventory:sourceInventoryId,
-    Inventory:destinationInventoryId,
-    Float:sourceInstanceTotalWeight,
-    Float:destinationInstanceTotalWeight
+/* Checks one side of a swap: the chain above `inventoryId`, skipping ancestors that contain `otherInventoryId`. */
+static stock bool:Inventory_Weight_CanSwapSide(
+    Inventory:inventoryId,
+    Inventory:otherInventoryId,
+    leavingUnits,
+    enteringUnits
 )
 {
-    if (!Inventory_IsValid(sourceInventoryId) || !Inventory_IsValid(destinationInventoryId) ||
-        sourceInventoryId == destinationInventoryId || sourceInstanceTotalWeight < 0.0 ||
-        destinationInstanceTotalWeight < 0.0)
-    {
-        return false;
-    }
-
     new
-        Pool:inventoriesPool = _Inventory_Core_GetInventoriesPool(),
-        maxDepth = pool_size(inventoriesPool) + 1,
-        Inventory:currentInventoryId = sourceInventoryId;
+        maxDepth = pool_size(_Inventory_Core_GetInventoriesPool()) + 1,
+        Inventory:currentInventoryId = inventoryId;
 
     for (new depth; currentInventoryId != INVALID_INVENTORY_ID && depth < maxDepth; depth++)
     {
-        if (!_Inventory_Container_IsWithinTree(destinationInventoryId, currentInventoryId))
+        if (!_Inventory_Container_IsWithinTree(otherInventoryId, currentInventoryId))
         {
             new
-                Float:currentWeight = Inventory_GetTotalWeight(currentInventoryId),
-                Float:maxWeight = Inventory_GetMaxWeight(currentInventoryId),
-                Float:projectedWeight = currentWeight - sourceInstanceTotalWeight +
-                    destinationInstanceTotalWeight;
+                currentUnits = _Inventory_Weight_GetTotalUnits(currentInventoryId) - leavingUnits;
 
-            if (projectedWeight < -INVENTORY_WEIGHT_EPSILON ||
-                (maxWeight > 0.0 && projectedWeight > maxWeight + INVENTORY_WEIGHT_EPSILON))
-            {
-                return false;
-            }
-        }
-
-        currentInventoryId = _Inventory_Container_GetBoundParent(currentInventoryId);
-    }
-
-    if (currentInventoryId != INVALID_INVENTORY_ID)
-    {
-        return false;
-    }
-
-    currentInventoryId = destinationInventoryId;
-
-    for (new depth; currentInventoryId != INVALID_INVENTORY_ID && depth < maxDepth; depth++)
-    {
-        if (!_Inventory_Container_IsWithinTree(sourceInventoryId, currentInventoryId))
-        {
-            new
-                Float:currentWeight = Inventory_GetTotalWeight(currentInventoryId),
-                Float:maxWeight = Inventory_GetMaxWeight(currentInventoryId),
-                Float:projectedWeight = currentWeight - destinationInstanceTotalWeight +
-                    sourceInstanceTotalWeight;
-
-            if (projectedWeight < -INVENTORY_WEIGHT_EPSILON ||
-                (maxWeight > 0.0 && projectedWeight > maxWeight + INVENTORY_WEIGHT_EPSILON))
+            if (currentUnits < 0 ||
+                !Inventory_Weight_Fits(currentUnits, enteringUnits, _Inventory_Weight_GetMaxUnits(currentInventoryId)))
             {
                 return false;
             }
@@ -289,4 +341,32 @@ stock bool:_Inventory_Weight_CanSwapTotal(
     }
 
     return currentInventoryId == INVALID_INVENTORY_ID;
+}
+
+stock bool:_Inventory_Weight_CanSwapTotal(
+    Inventory:sourceInventoryId,
+    Inventory:destinationInventoryId,
+    sourceInstanceTotalUnits,
+    destinationInstanceTotalUnits
+)
+{
+    if (!Inventory_IsValid(sourceInventoryId) || !Inventory_IsValid(destinationInventoryId) ||
+        sourceInventoryId == destinationInventoryId || sourceInstanceTotalUnits < 0 ||
+        destinationInstanceTotalUnits < 0)
+    {
+        return false;
+    }
+
+    return Inventory_Weight_CanSwapSide(
+            sourceInventoryId,
+            destinationInventoryId,
+            sourceInstanceTotalUnits,
+            destinationInstanceTotalUnits
+        ) &&
+        Inventory_Weight_CanSwapSide(
+            destinationInventoryId,
+            sourceInventoryId,
+            destinationInstanceTotalUnits,
+            sourceInstanceTotalUnits
+        );
 }

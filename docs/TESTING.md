@@ -22,6 +22,8 @@ repository root on the include path. A clean compile of every entry point is a p
 | File | Run as | Covers |
 | --- | --- | --- |
 | `inventory_framework_test.pwn` | GameMode | The main regression suite: catalog, instances, properties, storage, stacks, weight (local and carried), containers, Overflow, handlers, debug validation. Prints a pass/fail report. |
+| `inventory_workflow_test.pwn` | GameMode | v0.1.10.0: slot lookup, container on a detached item, per-Inventory Overflow policy and limit, `DestroyItem` / `Clear` / `DestroyRecursive`, slot-event helpers. |
+| `inventory_audit_test.pwn` | GameMode | v0.1.8.0 follow-up: lazy properties, String + split, numeric results, integer weights, bounded Overflow, plan / commit placement, `Inventory_Debug_ValidateOne`. |
 | `inventory_ownership_test.pwn` | GameMode | Ownership back-reference through add, overflow, drain, remove, cross-inventory move and swap, split and merge; `Inventory_Debug_Validate` after each step; the Instance -> Type -> Definition property chain, `ClearProperty`, `HasProperty`; the catalog enumerators. |
 | `inventory_tag_test.pwn` | GameMode (compile-focused) | Generic PawnPlus lists and maps of framework tags combined with a consumer-defined tag. |
 | `inventory_filterscript_test.pwn` | Filterscript | The framework loaded from a filterscript. |
@@ -38,12 +40,9 @@ verified once both GameMode suites report `0 FAIL`.
 | v0.1.6.78 (historical baseline) | `inventory_framework_test.pwn` | 616 PASS / 0 FAIL |
 | v0.1.7.1 | `inventory_framework_test.pwn` | passed (maintainer report; counts not recorded) |
 | v0.1.7.1 | `inventory_ownership_test.pwn` | passed (maintainer report; counts not recorded) |
-| v0.1.7.2 | `inventory_framework_test.pwn` | passed (maintainer report; counts not recorded) |
-| v0.1.7.2 | `inventory_ownership_test.pwn` | passed (maintainer report; counts not recorded) |
-| v0.1.7.3 | `inventory_framework_test.pwn` | passed (maintainer report; counts not recorded) |
-| v0.1.7.3 | `inventory_ownership_test.pwn` | passed (maintainer report; counts not recorded) |
-| v0.1.7.4 | `inventory_framework_test.pwn` | not run |
-| v0.1.7.4 | `inventory_ownership_test.pwn` | not run |
+| v0.1.8.0 | `inventory_framework_test.pwn` | not run |
+| v0.1.8.0 | `inventory_ownership_test.pwn` | not run |
+| v0.1.8.0 | `inventory_audit_test.pwn` | not run |
 
 The previous, version-by-version test plan with all historical suite descriptions is archived in
 `history/TEST_PLAN_V01_6_106.md`. Its names are the ones used at the time.

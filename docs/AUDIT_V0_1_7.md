@@ -14,13 +14,13 @@ That produces the `attachment` hub, a placement algorithm that exists twice, and
 
 | Fact | Value |
 | --- | --- |
-| Calls from `attachment` into other modules | about 233 (record 60, weight 50, storage 45, stack 31, instance 25, container 15, type 7); 99 since v0.1.7.4, the rest moved to `relocation` |
-| Calls from `operations` into storage / record / instance | 16 / 31 / 24 (0 / 0 / 1 since v0.1.7.4: it only dispatches) |
+| Calls from `attachment` into other modules | about 233 (record 60, weight 50, storage 45, stack 31, instance 25, container 15, type 7) |
+| Calls from `operations` into storage / record / instance | 16 / 31 / 24 (it should only dispatch) |
 | Validity checks (`IsValid` of Inventory, Instance, Storage, Type) | 208 |
 | String-key map reads / writes | 136 / 52 |
 | Statements of `Attach` repeated verbatim in `MoveStacked` | 63 of 119 |
 | `return false` exits inside `Attach` | 19 |
-| Hand-written weight-cache writes outside `weight` | 19 (0 since v0.1.7.3) |
+| Hand-written weight-cache writes outside `weight` | 19 |
 | Storage mutations / snapshot restores / reparent calls outside their owners | 30 / 7 / 14 |
 | Copies of the weight tolerance literal | 15 (now one constant) |
 | Revision counter, result codes, stable identity | none |
@@ -30,7 +30,7 @@ That produces the `attachment` hub, a placement algorithm that exists twice, and
 | Id | Risk | Evidence | Status |
 | --- | --- | --- | --- |
 | R1 | `SplitStack` clones the property Map; String values are acquired references. A shallow clone would make the source and the split share one String. | inferred; no test covered it | closed: test added in v0.1.7.1 and the suite passed |
-| R2 | Pool indices are reused, so a stored `ItemInstance:` can later name a different item. | inferred (`pool_add` reuses free indices); no uid or generation exists | planned, stage 6a |
+| R2 | Pool indices are reused, so a stored `ItemInstance:` can later name a different item. | inferred (`pool_add` reuses free indices); no uid or generation exists | deferred (consumer or future stage) |
 | R3 | Float weights with an incrementally updated cache drift; the code already snaps tiny negatives. | measured (15 tolerance sites) | tolerance centralized (S1); integer weights planned, stage 6 |
 | R4 | The Overflow queue has no size limit, and a head item that does not fit blocks the items behind it. | inferred | policy decision needed |
 | R5 | Properties are untyped: reading a Float key with `GetInt` returns the raw cell. | inferred | planned (debug validation or per-key type tag) |
@@ -45,13 +45,13 @@ That produces the `attachment` hub, a placement algorithm that exists twice, and
    planner that computes the plan and validates capacity, weight and container cycles before any write removes the rollback
    ladders, unifies the duplicated algorithm and yields the failure reason.
 3. **Explicit results.** `Inventory_Add` returns `true` both for "placed in a slot" and "queued in Overflow" and `false` for
-   several causes. Add an `e_INVENTORY_RESULT` read through `Inventory_GetLastResult()`; keep the `bool` API.
+   several causes. The mutating public functions return a plain integer directly (`> 0` success, `<= 0` failure; see `RESULT_CODES.md`); an enumeration is left for later.
 4. **Validate at the boundary.** Public functions validate; internal ones trust. A `INVENTORY_PARANOID` compile flag restores the
    checks and validates only the touched inventories after each operation (the current full validator is
    O(instances x inventories x slots)).
 5. **Change notification by revision.** A per-inventory counter incremented at the single mutation point lets a UI know when
    to redraw.
-6. **Identity** (section 6), **integer weights** internally with `Float` at the API, **bounded Overflow**.
+6. **Identity** (section 6, deferred), **integer weights** internally with `Float` at the API, **bounded Overflow**.
 
 Only after measuring: move the hot structural fields (stack, type, owner, weight) from string-key maps to typed arrays.
 
@@ -114,19 +114,18 @@ and whether it loads under open.mp. Check those before adopting it. The framewor
 | --- | --- | --- |
 | S1 | String + split test; weight tolerance constant | done (v0.1.7.1) |
 | S2 | lazy lifecycle context; carried weight over children | done (v0.1.7.1) |
-| gate | v0.1.7.1 compiled and all suites passed (maintainer report) | cleared |
+| gate | compile everything, run the suites, record results in `TESTING.md` | cleared for S3a; **still required for S3b to S6c** |
 | S3a | item count and revision at the storage mutation point; O(1) structural check on every mutation | done (v0.1.7.2) |
-| gate | v0.1.7.2 compiled and all suites passed (maintainer report) | cleared |
-| S3b | pure weight math before storage; local weight cache maintained at the storage mutation point (removes the 19 manual writes) | done (v0.1.7.3) |
-| S4a | `relocation` module; `operations` reduced to a dispatcher; permitted-edge matrix in `check.py` | done (v0.1.7.4) |
-| S4b | explicit result codes returned by the operations (breaking) | planned |
-| S5 | planner/commit placement for `Attach`, `MoveStacked`, `Merge` | planned |
-| S6a | `uid` (stale-handle detection) | planned |
-| S6b | `uuid` with pluggable generator (pawn-uuid default) | planned |
-| S6c | `INVENTORY_PARANOID`, integer weights, swap-remove type lists, lazy properties, bounded Overflow | planned |
+| S3b | pure weight math before storage; local weight cache maintained at the storage mutation point (removes the 19 manual writes) | implemented (v0.1.8.0), not compiled |
+| S4 | numeric results; `SplitStack` into `attachment`; permitted-edge matrix in `check.py` | implemented; results simplified to plain numbers in v0.1.10.0 |
+| S5 | planner/commit placement for `Attach`, `MoveStacked`, `Merge`, `Split` | implemented (v0.1.8.0), not compiled |
+| S6a | `uid` (stale-handle detection) | implemented in v0.1.8.0, **removed in v0.1.10.0** (left for the consumer / future) |
+| S6b | `uuid` with pluggable generator (pawn-uuid default) | implemented in v0.1.8.0, **removed in v0.1.10.0** (left for the consumer / future) |
+| S6c | `INVENTORY_PARANOID`, integer weights, opt-in swap-remove type lists, lazy properties, bounded Overflow | implemented (v0.1.8.0), not compiled; see CHANGELOG for what was deliberately not done |
 
-S3b and S5 change the core mutation paths and cannot be validated by the static checker. The gate was cleared for S3a (v0.1.7.2).
-S3b (v0.1.7.3) is waiting for its own compile-and-run gate, which must pass before S4 and S5.
+S3b and S5 change the core mutation paths and cannot be validated by the static checker; they are gated on a clean compile and
+a green run of the existing suites. The gate was cleared for S3a (v0.1.7.1 compiled and all suites passed); it must be
+cleared again for S3b.
 
 ## 9. What stays
 

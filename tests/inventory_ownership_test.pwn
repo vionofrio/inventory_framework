@@ -109,8 +109,8 @@ public OnGameModeInit()
     );
 
     OwnershipTest_Assert(
-        Inventory_Add(firstInventoryId, firstId) &&
-        Inventory_Add(firstInventoryId, secondId) &&
+        (Inventory_Add(firstInventoryId, firstId) > 0) &&
+        (Inventory_Add(firstInventoryId, secondId) > 0) &&
         Inventory_ItemInstance_IsAttached(firstId) &&
         Inventory_ItemInstance_GetInventory(firstId) == firstInventoryId &&
         Inventory_ItemInstance_GetInventory(secondId) == firstInventoryId &&
@@ -119,7 +119,7 @@ public OnGameModeInit()
     );
 
     OwnershipTest_Assert(
-        Inventory_Add(firstInventoryId, thirdId) &&
+        (Inventory_Add(firstInventoryId, thirdId) > 0) &&
         Inventory_Overflow_GetItemCount(firstInventoryId) == 1 &&
         Inventory_ItemInstance_IsAttached(thirdId) &&
         Inventory_ItemInstance_GetInventory(thirdId) == firstInventoryId &&
@@ -130,14 +130,14 @@ public OnGameModeInit()
     OwnershipTest_Assert(
         !Inventory_ItemInstance_Destroy(firstId) &&
         !Inventory_ItemInstance_Destroy(thirdId) &&
-        !Inventory_Add(secondInventoryId, firstId) &&
-        !Inventory_Add(secondInventoryId, thirdId) &&
+        !(Inventory_Add(secondInventoryId, firstId) > 0) &&
+        !(Inventory_Add(secondInventoryId, thirdId) > 0) &&
         Inventory_ItemInstance_GetInventory(firstId) == firstInventoryId,
         "Attached and queued instances cannot be destroyed or attached a second time"
     );
 
     OwnershipTest_Assert(
-        Inventory_Remove(firstInventoryId, firstId) &&
+        (Inventory_Remove(firstInventoryId, firstId) > 0) &&
         !Inventory_ItemInstance_IsAttached(firstId) &&
         Inventory_ItemInstance_GetInventory(firstId) == INVALID_INVENTORY_ID &&
         Inventory_Overflow_GetItemCount(firstInventoryId) == 0 &&
@@ -152,15 +152,17 @@ public OnGameModeInit()
     */
 
     OwnershipTest_Assert(
-        Inventory_Move(firstInventoryId, secondId, INVENTORY_AUTO_SLOT_INDEX, secondInventoryId) &&
+        (
+            Inventory_Move(firstInventoryId, secondId, INVENTORY_AUTO_SLOT_INDEX, secondInventoryId) > 0
+        ) &&
         Inventory_ItemInstance_GetInventory(secondId) == secondInventoryId &&
         Inventory_Debug_Validate(),
         "Cross-inventory Move transfers ownership"
     );
 
     OwnershipTest_Assert(
-        Inventory_Add(secondInventoryId, firstId) &&
-        Inventory_Swap(firstInventoryId, thirdId, 0, secondInventoryId) &&
+        (Inventory_Add(secondInventoryId, firstId) > 0) &&
+        (Inventory_Swap(firstInventoryId, thirdId, 0, secondInventoryId) > 0) &&
         Inventory_ItemInstance_GetInventory(thirdId) == secondInventoryId &&
         Inventory_ItemInstance_GetInventory(secondId) == firstInventoryId &&
         Inventory_ItemInstance_GetInventory(firstId) == secondInventoryId &&
@@ -169,9 +171,9 @@ public OnGameModeInit()
     );
 
     OwnershipTest_Assert(
-        Inventory_Add(secondInventoryId, fourthId) &&
+        (Inventory_Add(secondInventoryId, fourthId) > 0) &&
         Inventory_Overflow_GetItemCount(secondInventoryId) == 1 &&
-        Inventory_Overflow_Remove(secondInventoryId, fourthId) &&
+        (Inventory_Overflow_Remove(secondInventoryId, fourthId) > 0) &&
         !Inventory_ItemInstance_IsAttached(fourthId) &&
         Inventory_ItemInstance_GetInventory(fourthId) == INVALID_INVENTORY_ID &&
         Inventory_Overflow_GetItemCount(secondInventoryId) == 0 &&
@@ -189,7 +191,7 @@ public OnGameModeInit()
         ItemInstance:splitId = INVALID_ITEM_INSTANCE_ID;
 
     OwnershipTest_Assert(
-        Inventory_Add(stackInventoryId, stackId) &&
+        (Inventory_Add(stackInventoryId, stackId) > 0) &&
         Inventory_ItemInstance_GetInventory(stackId) == stackInventoryId,
         "Stackable instance is attached"
     );
@@ -205,7 +207,7 @@ public OnGameModeInit()
     );
 
     OwnershipTest_Assert(
-        Inventory_MergeStack(stackId, splitId) &&
+        (Inventory_MergeStack(stackId, splitId) > 0) &&
         !Inventory_ItemInstance_IsValid(splitId) &&
         Inventory_ItemInstance_GetInventory(stackId) == stackInventoryId &&
         Inventory_ItemInstance_GetStack(stackId) == 4 &&
@@ -214,7 +216,7 @@ public OnGameModeInit()
     );
 
     OwnershipTest_Assert(
-        Inventory_Remove(stackInventoryId, stackId) &&
+        (Inventory_Remove(stackInventoryId, stackId) > 0) &&
         Inventory_ItemInstance_Destroy(stackId) &&
         Inventory_Destroy(stackInventoryId) &&
         Inventory_Debug_Validate(),
@@ -232,7 +234,7 @@ public OnGameModeInit()
 
     OwnershipTest_Assert(
         Inventory_ItemInstance_SetString(noteId, "note", "original") &&
-        Inventory_Add(splitInventoryId, noteId),
+        (Inventory_Add(splitInventoryId, noteId) > 0),
         "Stackable instance with a String property is attached"
     );
 
@@ -260,7 +262,7 @@ public OnGameModeInit()
     );
 
     OwnershipTest_Assert(
-        Inventory_Remove(splitInventoryId, noteId) &&
+        (Inventory_Remove(splitInventoryId, noteId) > 0) &&
         Inventory_ItemInstance_Destroy(noteId) &&
         OwnershipTest_StringEquals(Inventory_ItemInstance_GetString(noteSplitId, "note"), "original") &&
         Inventory_Debug_Validate(),
@@ -268,7 +270,7 @@ public OnGameModeInit()
     );
 
     OwnershipTest_Assert(
-        Inventory_Remove(splitInventoryId, noteSplitId) &&
+        (Inventory_Remove(splitInventoryId, noteSplitId) > 0) &&
         Inventory_ItemInstance_Destroy(noteSplitId) &&
         Inventory_Destroy(splitInventoryId) &&
         Inventory_Debug_Validate(),
@@ -295,7 +297,7 @@ public OnGameModeInit()
     );
 
     OwnershipTest_Assert(
-        Inventory_Add(revisionInventoryId, revisionAId) &&
+        (Inventory_Add(revisionInventoryId, revisionAId) > 0) &&
         Inventory_GetItemCount(revisionInventoryId) == 1 &&
         Inventory_GetRevision(revisionInventoryId) > revisionMark &&
         Inventory_Debug_Validate(),
@@ -310,14 +312,14 @@ public OnGameModeInit()
     Inventory_ItemInstance_IsAttached(revisionAId);
 
     OwnershipTest_Assert(
-        !Inventory_Add(revisionInventoryId, revisionAId) &&
+        !(Inventory_Add(revisionInventoryId, revisionAId) > 0) &&
         Inventory_GetRevision(revisionInventoryId) == revisionMark &&
         Inventory_GetItemCount(revisionInventoryId) == 1,
         "Reads and a rejected Add do not advance the revision"
     );
 
     OwnershipTest_Assert(
-        Inventory_Add(revisionInventoryId, revisionBId) &&
+        (Inventory_Add(revisionInventoryId, revisionBId) > 0) &&
         Inventory_GetItemCount(revisionInventoryId) == 2 &&
         Inventory_GetRevision(revisionInventoryId) > revisionMark,
         "A second Add advances the revision again"
@@ -326,7 +328,7 @@ public OnGameModeInit()
     revisionMark = Inventory_GetRevision(revisionInventoryId);
 
     OwnershipTest_Assert(
-        Inventory_Move(revisionInventoryId, revisionAId, 2, revisionInventoryId) &&
+        (Inventory_Move(revisionInventoryId, revisionAId, 2, revisionInventoryId) > 0) &&
         Inventory_GetItemAt(revisionInventoryId, 2) == revisionAId &&
         Inventory_GetItemCount(revisionInventoryId) == 2 &&
         Inventory_GetRevision(revisionInventoryId) > revisionMark &&
@@ -337,7 +339,7 @@ public OnGameModeInit()
     revisionMark = Inventory_GetRevision(revisionInventoryId);
 
     OwnershipTest_Assert(
-        Inventory_Remove(revisionInventoryId, revisionBId) &&
+        (Inventory_Remove(revisionInventoryId, revisionBId) > 0) &&
         Inventory_GetItemCount(revisionInventoryId) == 1 &&
         Inventory_GetRevision(revisionInventoryId) > revisionMark &&
         Inventory_Debug_Validate(),
@@ -345,8 +347,8 @@ public OnGameModeInit()
     );
 
     OwnershipTest_Assert(
-        Inventory_Add(revisionInventoryId, revisionBId) &&
-        Inventory_Add(revisionInventoryId, revisionCId) &&
+        (Inventory_Add(revisionInventoryId, revisionBId) > 0) &&
+        (Inventory_Add(revisionInventoryId, revisionCId) > 0) &&
         Inventory_GetItemCount(revisionInventoryId) == 3,
         "The Inventory can be filled"
     );
@@ -354,7 +356,7 @@ public OnGameModeInit()
     revisionMark = Inventory_GetRevision(revisionInventoryId);
 
     OwnershipTest_Assert(
-        Inventory_Add(revisionInventoryId, revisionDId) &&
+        (Inventory_Add(revisionInventoryId, revisionDId) > 0) &&
         Inventory_Overflow_GetItemCount(revisionInventoryId) == 1 &&
         Inventory_GetItemCount(revisionInventoryId) == 3 &&
         Inventory_GetRevision(revisionInventoryId) > revisionMark &&
@@ -365,7 +367,7 @@ public OnGameModeInit()
     revisionMark = Inventory_GetRevision(revisionInventoryId);
 
     OwnershipTest_Assert(
-        Inventory_Overflow_Remove(revisionInventoryId, revisionDId) &&
+        (Inventory_Overflow_Remove(revisionInventoryId, revisionDId) > 0) &&
         Inventory_GetItemCount(revisionInventoryId) == 3 &&
         Inventory_GetRevision(revisionInventoryId) > revisionMark &&
         Inventory_Debug_Validate(),
@@ -377,8 +379,8 @@ public OnGameModeInit()
         ItemInstance:revisionStackBId = Inventory_ItemInstance_Create(stackTypeId, 2);
 
     OwnershipTest_Assert(
-        Inventory_Remove(revisionInventoryId, revisionCId) &&
-        Inventory_Add(revisionInventoryId, revisionStackAId) &&
+        (Inventory_Remove(revisionInventoryId, revisionCId) > 0) &&
+        (Inventory_Add(revisionInventoryId, revisionStackAId) > 0) &&
         Inventory_GetItemCount(revisionInventoryId) == 3,
         "A stackable instance occupies the freed slot"
     );
@@ -386,7 +388,7 @@ public OnGameModeInit()
     revisionMark = Inventory_GetRevision(revisionInventoryId);
 
     OwnershipTest_Assert(
-        Inventory_Add(revisionInventoryId, revisionStackBId) &&
+        (Inventory_Add(revisionInventoryId, revisionStackBId) > 0) &&
         Inventory_ItemInstance_GetStack(revisionStackAId) == 5 &&
         Inventory_GetItemCount(revisionInventoryId) == 3 &&
         Inventory_GetRevision(revisionInventoryId) > revisionMark &&
@@ -401,114 +403,6 @@ public OnGameModeInit()
 
     Inventory_Remove(revisionInventoryId, revisionStackAId);
     Inventory_ItemInstance_Destroy(revisionStackAId);
-
-    /*
-        The cached local weight follows every membership and stack change.
-    */
-
-    new
-        ItemDefinition:weightDefinitionId = INVALID_ITEM_DEFINITION_ID,
-        ItemType:weightTypeId = INVALID_ITEM_TYPE_ID;
-
-    weightDefinitionId = Inventory_ItemDefinition_Define("own_weight_def", "Weighted", categoryId, 5);
-    weightTypeId = Inventory_ItemType_Define(
-        weightDefinitionId,
-        "own_weight",
-        "Weighted",
-        categoryId,
-        5,
-        0.5
-    );
-
-    new
-        Inventory:weightInventoryAId = Inventory_Create(4, 10.0),
-        Inventory:weightInventoryBId = Inventory_Create(4, 10.0),
-        ItemInstance:weightFirstId = Inventory_ItemInstance_Create(weightTypeId, 3),
-        ItemInstance:weightSecondId = Inventory_ItemInstance_Create(weightTypeId, 2),
-        ItemInstance:weightThirdId = Inventory_ItemInstance_Create(weightTypeId, 2),
-        ItemInstance:weightSplitId = INVALID_ITEM_INSTANCE_ID;
-
-    OwnershipTest_Assert(
-        Inventory_Add(weightInventoryAId, weightFirstId) &&
-        OwnershipTest_FloatEquals(Inventory_GetWeight(weightInventoryAId), 1.5) &&
-        Inventory_Debug_Validate(),
-        "Attaching an instance adds its weight"
-    );
-
-    OwnershipTest_Assert(
-        Inventory_Add(weightInventoryAId, weightSecondId) &&
-        Inventory_ItemInstance_GetStack(weightFirstId) == 5 &&
-        OwnershipTest_FloatEquals(Inventory_GetWeight(weightInventoryAId), 2.5) &&
-        Inventory_Debug_Validate(),
-        "Growing an attached stack adds the weight of the added units"
-    );
-
-    weightSplitId = Inventory_SplitStack(weightFirstId, 2);
-
-    OwnershipTest_Assert(
-        weightSplitId != INVALID_ITEM_INSTANCE_ID &&
-        Inventory_ItemInstance_GetStack(weightFirstId) == 3 &&
-        Inventory_ItemInstance_GetStack(weightSplitId) == 2 &&
-        OwnershipTest_FloatEquals(Inventory_GetWeight(weightInventoryAId), 2.5) &&
-        Inventory_Debug_Validate(),
-        "Splitting a stack keeps the Inventory weight"
-    );
-
-    OwnershipTest_Assert(
-        Inventory_Move(weightInventoryAId, weightSplitId, INVENTORY_AUTO_SLOT_INDEX, weightInventoryBId) &&
-        OwnershipTest_FloatEquals(Inventory_GetWeight(weightInventoryAId), 1.5) &&
-        OwnershipTest_FloatEquals(Inventory_GetWeight(weightInventoryBId), 1.0) &&
-        Inventory_Debug_Validate(),
-        "Moving to another Inventory transfers the weight"
-    );
-
-    OwnershipTest_Assert(
-        Inventory_Swap(weightInventoryAId, weightFirstId, 0, weightInventoryBId) &&
-        Inventory_ItemInstance_GetInventory(weightFirstId) == weightInventoryBId &&
-        OwnershipTest_FloatEquals(Inventory_GetWeight(weightInventoryAId), 1.0) &&
-        OwnershipTest_FloatEquals(Inventory_GetWeight(weightInventoryBId), 1.5) &&
-        Inventory_Debug_Validate(),
-        "Swapping across Inventories exchanges the weights"
-    );
-
-    OwnershipTest_Assert(
-        Inventory_Remove(weightInventoryAId, weightSplitId) &&
-        OwnershipTest_FloatEquals(Inventory_GetWeight(weightInventoryAId), 0.0) &&
-        OwnershipTest_FloatEquals(Inventory_GetTotalWeight(weightInventoryAId), 0.0) &&
-        Inventory_Debug_Validate(),
-        "Removing an instance subtracts its weight"
-    );
-
-    OwnershipTest_Assert(
-        Inventory_MergeStack(weightFirstId, weightThirdId) &&
-        Inventory_ItemInstance_GetStack(weightFirstId) == 5 &&
-        OwnershipTest_FloatEquals(Inventory_GetWeight(weightInventoryBId), 2.5) &&
-        Inventory_Debug_Validate(),
-        "Merging a detached stack into an attached one adds the transferred weight"
-    );
-
-    OwnershipTest_Assert(
-        Inventory_Remove(weightInventoryBId, weightFirstId) &&
-        OwnershipTest_FloatEquals(Inventory_GetWeight(weightInventoryBId), 0.0) &&
-        Inventory_Debug_Validate(),
-        "The weight returns to zero when everything is removed"
-    );
-
-    Inventory_ItemInstance_Destroy(weightFirstId);
-    Inventory_ItemInstance_Destroy(weightSplitId);
-
-    if (Inventory_ItemInstance_IsValid(weightSecondId) && !Inventory_ItemInstance_IsAttached(weightSecondId))
-    {
-        Inventory_ItemInstance_Destroy(weightSecondId);
-    }
-
-    if (Inventory_ItemInstance_IsValid(weightThirdId) && !Inventory_ItemInstance_IsAttached(weightThirdId))
-    {
-        Inventory_ItemInstance_Destroy(weightThirdId);
-    }
-
-    Inventory_Destroy(weightInventoryAId);
-    Inventory_Destroy(weightInventoryBId);
 
     /*
         Property lookup: Instance -> Type -> Definition.

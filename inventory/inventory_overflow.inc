@@ -9,6 +9,7 @@
     Responsibilities:
         - Per-inventory overflow queues (FIFO) for pending item instances.
         - Queue primitives that keep the queue and ItemInstance ownership consistent (Push / Pull).
+        - Per-Inventory admission policy and queue bound: Get/SetPolicy, Get/SetLimit, IsFull.
         - Public read access to the queue.
         - Admission policy and draining live in the attachment module; Overflow_Remove lives in operations.
 */
@@ -33,7 +34,7 @@ stock List<ItemInstance>:_Inventory_Overflow_GetQueue(
 stock bool:_Inventory_Overflow_Push(
     Inventory:inventoryId,
     ItemInstance:instanceId,
-    bool:atFront = false
+    position = -1
 )
 {
     if (!Inventory_IsValid(inventoryId) || !Inventory_ItemInstance_IsValid(instanceId))
@@ -50,9 +51,9 @@ stock bool:_Inventory_Overflow_Push(
         return false;
     }
 
-    if (atFront)
+    if (position >= 0 && position <= list_size<ItemInstance>(overflowItems))
     {
-        list_add<ItemInstance>(overflowItems, instanceId, 0);
+        list_add<ItemInstance>(overflowItems, instanceId, position);
     }
     else
     {
@@ -129,6 +130,82 @@ stock Inventory_Overflow_GetItemCount(
     }
 
     return list_size<ItemInstance>(overflowItems);
+}
+
+/* Admission policy of the Inventory (INVENTORY_OVERFLOW_REJECT for an invalid Inventory). */
+stock e_INVENTORY_OVERFLOW_POLICY:Inventory_Overflow_GetPolicy(
+    Inventory:inventoryId
+)
+{
+    if (!Inventory_IsValid(inventoryId))
+    {
+        return INVENTORY_OVERFLOW_REJECT;
+    }
+
+    new
+        Map:data = _Inventory_Record_GetData(inventoryId);
+
+    return e_INVENTORY_OVERFLOW_POLICY:map_str_get(data, INVENTORY_DATA_OVERFLOW_POLICY);
+}
+
+/*
+    Sets how the Inventory reacts when an Add finds no room (see e_INVENTORY_OVERFLOW_POLICY). Items already queued stay
+    queued and keep draining; only new admissions follow the new policy.
+*/
+stock bool:Inventory_Overflow_SetPolicy(
+    Inventory:inventoryId,
+    e_INVENTORY_OVERFLOW_POLICY:policy
+)
+{
+    if (!_Inventory_Core_IsInitialized() || !Inventory_IsValid(inventoryId) ||
+        policy < INVENTORY_OVERFLOW_REJECT || policy > INVENTORY_OVERFLOW_QUEUE_SKIP_BLOCKED)
+    {
+        return false;
+    }
+
+    map_str_set(_Inventory_Record_GetData(inventoryId), INVENTORY_DATA_OVERFLOW_POLICY, policy);
+
+    return Inventory_Overflow_GetPolicy(inventoryId) == policy;
+}
+
+/* Maximum queue length of the Inventory (0 = unbounded). */
+stock Inventory_Overflow_GetLimit(
+    Inventory:inventoryId
+)
+{
+    if (!Inventory_IsValid(inventoryId))
+    {
+        return 0;
+    }
+
+    return map_str_get(_Inventory_Record_GetData(inventoryId), INVENTORY_DATA_OVERFLOW_LIMIT);
+}
+
+/* Sets the queue bound. A limit below the current length does not evict; it only blocks new admissions. */
+stock bool:Inventory_Overflow_SetLimit(
+    Inventory:inventoryId,
+    limit
+)
+{
+    if (!_Inventory_Core_IsInitialized() || !Inventory_IsValid(inventoryId) || limit < 0)
+    {
+        return false;
+    }
+
+    map_str_set(_Inventory_Record_GetData(inventoryId), INVENTORY_DATA_OVERFLOW_LIMIT, limit);
+
+    return Inventory_Overflow_GetLimit(inventoryId) == limit;
+}
+
+/* True when the queue reached the Inventory's limit. */
+stock bool:_Inventory_Overflow_IsFull(
+    Inventory:inventoryId
+)
+{
+    new
+        limit = Inventory_Overflow_GetLimit(inventoryId);
+
+    return Inventory_IsValid(inventoryId) && limit > 0 && Inventory_Overflow_GetItemCount(inventoryId) >= limit;
 }
 
 stock ItemInstance:Inventory_Overflow_GetItem(

@@ -142,16 +142,26 @@ stock String:_Inventory_Property_GetString(
 }
 
 /*
-    Property maps are equal when they contain the same keys with the same tags and values.
+    Property maps are equal when they contain the same keys with the same tags and values. A missing map (instances
+    create theirs lazily) counts as an empty one.
 */
 stock bool:_Inventory_Property_AreEqual(
     Map:first,
     Map:second
 )
 {
-    if (!map_valid(first) || !map_valid(second) || map_size(first) != map_size(second))
+    new
+        firstSize = map_valid(first) ? map_size(first) : 0,
+        secondSize = map_valid(second) ? map_size(second) : 0;
+
+    if (firstSize != secondSize)
     {
         return false;
+    }
+
+    if (firstSize == 0)
+    {
+        return true;
     }
 
     new

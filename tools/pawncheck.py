@@ -113,6 +113,12 @@ def check(entry, root, project_prefixes=('Inventory', '_Inventory', 'ItemInstanc
                 inner = code_txt[code_txt.index('{') + 1:code_txt.rindex('}')]
                 for m in re.finditer(r'[A-Za-z_]\w*', inner):
                     consts.add(m.group(0))
+    # Configuration switches: a macro that is tested with `defined` is optional by design (for example
+    # INVENTORY_PARANOID), so using it inside `#if defined X` branches is not an undefined-macro error.
+    optional_macros = set()
+    for (path, kind, it) in seq:
+        if kind == 'item':
+            optional_macros.update(re.findall(r'defined\s*\(?\s*([A-Za-z_]\w*)', it.text))
     sigs = {}
     for idx, (path, kind, it) in enumerate(seq):
         if kind != 'item': continue
@@ -212,7 +218,7 @@ def check(entry, root, project_prefixes=('Inventory', '_Inventory', 'ItemInstanc
         # undefined project macros (signature included: array sizes are macros too)
         for m in re.finditer(r'(?<![A-Za-z0-9_])(_?(?:INVENTORY|ITEM|STORAGE)_[A-Z0-9_]+)(?![A-Za-z0-9_])', code):
             nm = m.group(1)
-            if nm not in macros and nm not in consts:
+            if nm not in macros and nm not in consts and nm not in optional_macros:
                 problems.append(('undefined_macro', os.path.basename(path), it.name, nm))
         # constants
         for m in re.finditer(r'\b((?:INVENTORY|ITEM|STORAGE|INVALID)_[A-Z0-9_]+)\b', body):

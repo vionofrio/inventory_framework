@@ -2,35 +2,146 @@
 
 Release notes for v0.1.1 - v0.1.6.106 are consolidated in `docs/history/CHANGELOG_V0_1_1_TO_V0_1_6_106.md`.
 
-## v0.1.7.4 - audit stage 4a
+## v0.1.10.0 - results back to plain numbers, identity removed
 
-Structure only; behavior and return types are unchanged (a statement-level comparison against v0.1.7.3 shows no logic lost).
+**Verified by `tools/check.py` only.** No backward compatibility was kept.
 
-- New module `relocation` holds the move, swap, split and merge primitives (`_Inventory_Relocation_Move`, `_Swap`, `_Split`,
-  `_MergeStack`, `_MoveContainer`, `_MoveItem`, `_MoveStacked`, `_CanSwapAcross`, `_SwapAcross`, `_Merge`). `attachment` shrinks
-  from the hub it had become (about 233 outgoing calls) to attach, detach, the placement decision of `Add`, Overflow
-  admission, drain and queue removal (99).
-- `operations` is a pure dispatcher: initialization guard, one primitive, lifecycle event. Its cross-module calls fell from
-  about 110 to 20 (core, attachment, relocation, handler and one read of instance); it no longer touches storage, stack or weight.
-- `tools/check.py` enforces a permitted module-call matrix (`ALLOWED_EDGES`), so the layering is a checked rule.
-- The remaining forward declaration is `_Inventory_Relocation_Swap` (mutual recursion with `_Inventory_Relocation_Move`).
+### Results (S4 reverted)
+- Removed `e_INVENTORY_RESULT`, `Inventory_Result_IsOk`, `Inventory_Result_GetName` and every `INVENTORY_RESULT_*`
+  constant. The mutating public functions (and the attachment primitives) return plain integers: `> 0` is a success and
+  `<= 0` a failure. Success is `1` (`2` when `Inventory_Add` queued the item); a failure is a negative reason.
+  `Inventory_SplitStack` keeps its optional `&result` out parameter, now numeric.
+- The meaning of each value is documented in `docs/RESULT_CODES.md`. The source annotates each literal with its name in
+  a comment so that a future enumeration can replace the numbers mechanically.
+- Tests and examples use comparisons such as `Inventory_Add(...) > 0`.
+- Unchanged: `SplitStack` and same-inventory `Move` live in `attachment`, `operations` is a dispatcher, and the edge
+  matrix is still enforced by `tools/check.py`.
 
-## v0.1.7.3 - audit stage 3b
+### Identity (S6a, S6b reverted)
+- Removed `uid` and `uuid` for instances and Inventories (`Inventory_ItemInstance_GetUid/IsCurrent`,
+  `Inventory_GetUid/IsCurrent`, `Inventory_ItemInstance_GetUuid/SetUuid/HasUuid/FindByUuid`,
+  `Inventory_Uuid_IsGenerationAvailable`, `INVENTORY_UUID_GENERATOR`, the uuid registry, the debug checks and their
+  tests). Nothing in the framework used them; a consumer can layer them on top, or they can return as a future stage
+  (`docs/AUDIT_V0_1_7.md` section 6 keeps the design).
 
-Behavior-preserving. See `docs/AUDIT_V0_1_7.md`.
+## v0.1.9.0 - workflow API
 
-- The local weight cache moved from the Inventory record to the storage and is maintained at the success path of the storage
-  mutations, next to ownership, item count and revision. The 19 hand-written cache writes outside the weight module
-  (`_Inventory_Weight_Add`, `_Remove`, `_Transfer`, `_Set`) and their compensation branches are gone; a compensation is now
-  the inverse storage call. Attached-stack changes go through `_Inventory_Storage_AdjustWeight`.
-- Checks that used to run after an insertion, while the cache did not yet contain the item, now run before it (`Attach`,
-  `MoveStacked`, `SplitStack`); the cache has the same value at that point, so acceptance is unchanged.
-- `_Inventory_Weight_Calculate` and `_Inventory_Weight_GetInstance` moved next to the data they read, as
-  `_Inventory_ItemType_CalculateWeight` and `_Inventory_ItemInstance_CalculateWeight` (bodies unchanged).
-- `INVENTORY_DATA_WEIGHT` is replaced by `STORAGE_DATA_WEIGHT`; the weight module keeps the policy (`CanAdd`, carried weight)
-  and the getters.
-- New tests: the cached weight after add, stack growth, split, move, swap, remove and merge, each followed by
-  `Inventory_Debug_Validate`.
+**Verified by `tools/check.py` only; the previous version was compiled and passed.** No backward compatibility was kept.
+
+### Slot lookup
+- `Inventory_GetItemSlot(inventoryId, instanceId)` and `Inventory_ItemInstance_GetSlot(instanceId)` expose the storage
+  lookup (-1 when detached, queued or invalid). They are the inverse of the existing `Inventory_GetItemAt`, which keeps
+  its name. `_Inventory_Attachment_FindSlot` was removed.
+
+### Containers on detached items
+- `Inventory_ItemInstance_CreateContainer` accepts a detached item and creates a parentless content Inventory.
+  `Inventory_Add` (plan, then commit) reparents it under the destination, so "add first, create the container
+  afterwards, roll back on failure" is no longer needed. The plan refuses a cycle (`CONTAINER_CYCLE`) or carried
+  weight over the limit (`TOO_HEAVY`) without touching anything.
+
+### Overflow policy per Inventory
+- `e_INVENTORY_OVERFLOW_POLICY` (`INVENTORY_OVERFLOW_REJECT`, `INVENTORY_OVERFLOW_QUEUE`,
+  `INVENTORY_OVERFLOW_QUEUE_SKIP_BLOCKED`) with `Inventory_Overflow_GetPolicy/SetPolicy`, and a per-Inventory queue
+  limit with `Inventory_Overflow_GetLimit/SetLimit`.
+- With `REJECT`, `Inventory_Add` fails immediately with the real reason (for example `NO_SPACE`) and nothing is queued;
+  items already queued keep draining. New Inventories start from `INVENTORY_DEFAULT_OVERFLOW_POLICY` (`QUEUE`) and
+  `INVENTORY_DEFAULT_OVERFLOW_LIMIT` (256), which replace the compile-time `INVENTORY_OVERFLOW_MAX_ITEMS` and
+  `INVENTORY_OVERFLOW_SKIP_BLOCKED` switches of v0.1.8.0. New result code `INVENTORY_RESULT_OVERFLOW_DISABLED`.
+
+### High-level operations
+- `Inventory_DestroyItem(instanceId)`: removes a held item (slot or queue; `REMOVED` event, Overflow refill), destroys a
+  container's contents recursively and then the instance.
+- `Inventory_Clear(inventoryId, &destroyedCount)`: destroys every item in the slots and in the queue, recursively
+  through containers; the Inventory stays.
+- `Inventory_DestroyRecursive(inventoryId)`: clears, destroys child Inventories depth-first, then the Inventory. For a
+  container's contents the item stays as a plain item. All three return `e_INVENTORY_RESULT`; on a failure what was
+  already destroyed stays destroyed.
+
+### Slot events
+- `Inventory_TriggerSlotEvent(inventoryId, slotIndex, event, contextKey = "", contextValue = 0)` and
+  `Inventory_ItemInstance_TriggerSimpleEvent(instanceId, event, contextKey = "", contextValue = 0)`: the framework
+  allocates and frees the context. Slot events carry `INVENTORY_CONTEXT_INVENTORY_ID`, the new
+  `INVENTORY_CONTEXT_SLOT_INDEX` and one optional consumer entry. `Inventory_ItemInstance_TriggerEvent` remains for
+  richer contexts.
+
+### Tooling
+- The edge matrix allows `record -> instance`; `check.py` allows the forward declaration of the mutually recursive
+  `Inventory_Operations_ClearInventory`. New suite: `tests/inventory_workflow_test.pwn`.
+
+## v0.1.8.0 - audit stages 3b to 6c
+
+**Written without a Pawn compiler; verified only by `tools/check.py`. Compile and run every suite before use.**
+Mostly behavior-preserving, with the deliberate changes listed under "Behavior changes".
+
+### Consistency boundary (S3b)
+- The cached local weight moved from the Inventory record (`INVENTORY_DATA_WEIGHT`, removed) to the storage
+  (`STORAGE_DATA_WEIGHT`, integer units). It changes only in storage's `TryInsert`, `TryRemove`, `TryMove`,
+  `TrySwapAcross` and the new `TryResize`, so it cannot diverge from slot membership. The 19 manual writes and
+  `_Inventory_Weight_Add/Remove/Set/Transfer/Calculate/GetInstance` are gone; `weight` is read-only policy.
+- Pure weight math lives below storage: `_Inventory_ItemType_GetWeightUnits`, `_Inventory_ItemInstance_GetWeightUnits`.
+
+### Integer weights (S6c)
+- Weights are integer units internally (`INVENTORY_WEIGHT_SCALE`, default 1,000,000 = milligrams); the public API still
+  uses Float kilograms. `INVENTORY_WEIGHT_EPSILON` and all tolerance comparisons were removed. Limit: about 2,147 kg
+  of cached weight per Inventory with the default scale (define `INVENTORY_WEIGHT_SCALE` as `1000` for grams).
+
+### Results (S4) - superseded by v0.1.10.0 (plain numbers)
+- `e_INVENTORY_RESULT` is returned directly: `Inventory_Add`, `Inventory_Remove`, `Inventory_Move`, `Inventory_Swap`,
+  `Inventory_MergeStack` and `Inventory_Overflow_Remove` return it instead of `bool`, and `Inventory_SplitStack` fills an
+  optional `&result` out parameter. There is no hidden last-result state. Success is `INVENTORY_RESULT_OK` (0) or, for
+  `Inventory_Add`, `INVENTORY_RESULT_OK_QUEUED`; everything else is the refusal reason (`NO_SPACE`, `TOO_HEAVY`,
+  `CONTAINER_CYCLE`, `INVALID_SLOT`, `SLOT_OCCUPIED`, `OVERFLOW_PENDING`, `OVERFLOW_FULL`, ...). Because OK is 0, never
+  use a result as a bool: use `Inventory_Result_IsOk(result)` or compare. `Inventory_Result_GetName` gives the name.
+- The attachment primitives (`Attach`, `Enqueue`, `Detach`, `MoveContainer`, `MoveStacked`, `MoveItem`, `MoveWithin`,
+  `SwapAcross`, `CanSwapAcross`, `Merge`) return the result too, so the reason travels up unchanged.
+- `SplitStack` mutation moved to `_Inventory_Attachment_Split`; `Move` within one Inventory to
+  `_Inventory_Attachment_MoveWithin`. `operations` now only dispatches (no calls to storage, stack or weight).
+- `tools/check.py` enforces a module edge matrix (`ALLOWED_EDGES`). Calls from attachment to other modules fell from
+  about 233 to about 173.
+
+### Plan, then commit (S5)
+- `Attach`, `MoveStacked`, `Merge` and `Split` compute a pure plan (`Inventory_Attachment_PlanPlacement`: stacks to fill,
+  slot, capacity, weight, container cycle via `_Inventory_Record_CanReparent`) and then run writes that are not expected to
+  fail. The stack snapshots and the rollback ladders were removed; add/move/drain share one placement algorithm.
+  A commit failure returns `INVENTORY_RESULT_INTERNAL` (no rollback); `INVENTORY_PARANOID` prints the violation.
+  `MoveContainer`, `SwapAcross` and `Detach` keep a single defensive undo around the reparent step.
+
+### Identity (S6a, S6b) - removed in v0.1.10.0
+- `uid` (never reused, 0 invalid) for instances and Inventories: `Inventory_ItemInstance_GetUid` / `IsCurrent`,
+  `Inventory_GetUid` / `IsCurrent`.
+- Optional `uuid` per instance, created lazily: `Inventory_ItemInstance_GetUuid`, `SetUuid` (restore), `HasUuid`,
+  `FindByUuid`, `Inventory_Uuid_IsGenerationAvailable`. Generator: `INVENTORY_UUID_GENERATOR` (a function
+  `(output[], size)`), else the pawn-uuid plugin when `<uuid>` defines `UUID_LEN`, else disabled (restore only). Split
+  and merge give the new/surviving instance no inherited uuid; destroy releases it. (The audit sketched
+  `Inventory_FindItemInstanceByUuid`; the repo's naming rule gives `Inventory_ItemInstance_FindByUuid`.)
+
+### Safety net and smaller items (S6c)
+- `INVENTORY_PARANOID` (define before including): every public mutation audits the touched Inventories with
+  `_Inventory_Attachment_CheckInventory` (O(slots)) and prints a violation. `Inventory_Debug_ValidateOne(inventoryId)`
+  exposes the same check; `Inventory_Debug_Validate` stays the independent full oracle and now also checks weight in
+  integer units, uid and uuid consistency.
+- Overflow: bounded by `INVENTORY_OVERFLOW_MAX_ITEMS` (default 256, 0 = unbounded); the drain policy is explicit (strict FIFO,
+  or `INVENTORY_OVERFLOW_SKIP_BLOCKED`). `_Inventory_Overflow_Push` takes a position instead of `atFront`.
+- Instance property Maps are created on the first Set; an absent Map reads as empty everywhere (including stack
+  compatibility and split).
+- Type instance lists: optional O(1) swap-remove with `INVENTORY_UNORDERED_TYPE_INSTANCES`. Off by default because
+  `GetInstanceAt` documents and tests creation order.
+- Carried weight, `CanAdd` and friends compare integers with an overflow-safe `add <= max - current` form.
+
+### Behavior changes
+- The mutating public functions no longer return `bool` (see Results); every call site in `tests/` and `examples/` was updated.
+- Overflow is now bounded: Add returns false with `OVERFLOW_FULL` once 256 items are queued (previously unbounded).
+- Weight comparisons are exact; sums such as 10 x 0.1 kg no longer need a tolerance. Per-unit weights are rounded to
+  `1/INVENTORY_WEIGHT_SCALE` kg.
+- `Inventory_ItemInstance_Destroy` ordering is unchanged; `GetTotalWeight` and the swap/transfer checks use the same
+  rules in integers.
+
+### Deliberately not done
+- Removing the ~200 internal `IsValid` checks ("validate at the border"): safe only with a compiler and a green run;
+  the new planner/commit code trusts its already validated inputs, and `INVENTORY_PARANOID` is the net for the rest.
+- Typed property tags (R5), a stack merge-key/signature, handler name-list caching, container validate-on-write, and
+  moving hot structural fields to typed arrays (the audit itself says to measure first).
+- Persistence (uid/uuid are the prerequisites; nothing is serialized).
 
 ## v0.1.7.2 - audit stage 3a
 
@@ -65,9 +176,9 @@ Behavior-preserving. See `docs/AUDIT_V0_1_7.md` for the audit and the staged roa
   `attachment`, `operations` and `overflow`. `core` no longer holds item, event or attachment logic.
 - Include order is a strict dependency order; forward declarations went from 24 to 2
   (`Inventory_Swap` <-> `Inventory_Move` mutual recursion, and `Inventory_Exit`).
-- Of the 185 original function definitions, 110 moved or were renamed with no textual change
-  (verified by comparing normalized bodies against v0.1.6.106), 73 were modified or replaced and
-  2 pass-through wrappers were removed; 54 functions are new (232 definitions in total).
+- Of the 185 original function definitions, 115 moved or were renamed with no textual change
+  (verified by comparing normalized bodies against v0.1.6.106), 68 were modified or replaced and
+  2 pass-through wrappers were removed; 45 functions are new (228 definitions in total).
 - `Inventory_Move`, `Inventory_Swap` and `Inventory_MergeStack` are thin dispatchers (128, 96 and 67 lines, from 413, 217 and
   186). Their bodies moved verbatim into attachment primitives (`MoveContainer`, `MoveItem`, `MoveStacked`, `CanSwapAcross`,
   `SwapAcross`, `Merge`); the five-times repeated rollback sequence became one helper. A statement-level comparison against

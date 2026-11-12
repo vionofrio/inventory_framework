@@ -342,7 +342,6 @@ static stock bool:Inventory_Debug_ValidateInstance(
 
     if (!map_valid(data) || !map_has_str_key(data, ITEM_INSTANCE_DATA_TYPE) ||
         !map_has_str_key(data, ITEM_INSTANCE_DATA_STACK) ||
-        !map_has_str_key(data, ITEM_INSTANCE_DATA_PROPERTIES) ||
         !map_has_str_key(data, ITEM_INSTANCE_DATA_CONTAINER_INVENTORY))
     {
         return false;
@@ -350,7 +349,8 @@ static stock bool:Inventory_Debug_ValidateInstance(
 
     if (!Inventory_ItemType_IsValid(typeId) ||
         stack <= 0 || stack > _Inventory_Stack_GetMax(instanceId) ||
-        !map_valid(Map:map_str_get(data, ITEM_INSTANCE_DATA_PROPERTIES)))
+        (map_has_str_key(data, ITEM_INSTANCE_DATA_PROPERTIES) &&
+            !map_valid(Map:map_str_get(data, ITEM_INSTANCE_DATA_PROPERTIES))))
     {
         return false;
     }
@@ -414,6 +414,8 @@ static stock bool:Inventory_Debug_ValidateInventory(
         !map_has_str_key(data, INVENTORY_DATA_STORAGE) ||
         !map_has_str_key(data, INVENTORY_DATA_CHILDREN) ||
         !map_has_str_key(data, INVENTORY_DATA_OVERFLOW) ||
+        !map_has_str_key(data, INVENTORY_DATA_OVERFLOW_POLICY) ||
+        !map_has_str_key(data, INVENTORY_DATA_OVERFLOW_LIMIT) ||
         !map_has_str_key(data, INVENTORY_DATA_PROPERTIES) ||
         !map_has_str_key(data, INVENTORY_DATA_CONTAINER_INSTANCE))
     {
@@ -430,15 +432,19 @@ static stock bool:Inventory_Debug_ValidateInventory(
             data,
             INVENTORY_DATA_MAX_WEIGHT
         ),
+        weight = _Inventory_Weight_GetUnits(inventoryId),
+        maxUnits = _Inventory_Weight_GetMaxUnits(inventoryId),
         InventoryStorage:storageId = _Inventory_Record_GetStorage(data),
-        Float:weight = _Inventory_Storage_GetWeight(storageId),
         List<Inventory>:children = List<Inventory>:map_str_get(
             data,
             INVENTORY_DATA_CHILDREN
         ),
         List<ItemInstance>:overflowItems = _Inventory_Overflow_GetQueue(data);
 
-    if (maxSlots <= 0 || maxWeight < 0.0 || weight < 0.0 ||
+    if (Inventory_Overflow_GetPolicy(inventoryId) < INVENTORY_OVERFLOW_REJECT ||
+        Inventory_Overflow_GetPolicy(inventoryId) > INVENTORY_OVERFLOW_QUEUE_SKIP_BLOCKED ||
+        Inventory_Overflow_GetLimit(inventoryId) < 0 ||
+        maxSlots <= 0 || maxWeight < 0.0 || weight < 0 ||
         !map_valid(Map:map_str_get(data, INVENTORY_DATA_PROPERTIES)) ||
         !_Inventory_Storage_IsConsistent(storageId) || !list_valid<Inventory>(children) ||
         !list_valid<ItemInstance>(overflowItems))
@@ -533,7 +539,7 @@ static stock bool:Inventory_Debug_ValidateInventory(
 
     new
         itemCount = _Inventory_Storage_GetSlotCount(storageId),
-        Float:expectedWeight = 0.0;
+        expectedWeight;
 
     for (new itemIndex; itemIndex < itemCount; itemIndex++)
     {
@@ -551,18 +557,15 @@ static stock bool:Inventory_Debug_ValidateInventory(
             return false;
         }
 
-        expectedWeight += _Inventory_ItemInstance_CalculateWeight(instanceId);
+        expectedWeight += _Inventory_ItemInstance_GetWeightUnits(instanceId);
     }
 
-    if (weight - expectedWeight > INVENTORY_WEIGHT_EPSILON || expectedWeight - weight > INVENTORY_WEIGHT_EPSILON ||
-        (maxWeight > 0.0 && expectedWeight - maxWeight > INVENTORY_WEIGHT_EPSILON))
+    if (weight != expectedWeight || (maxUnits > 0 && expectedWeight > maxUnits))
     {
         return false;
     }
 
-    new Float:totalWeight = Inventory_GetTotalWeight(inventoryId);
-
-    if (maxWeight > 0.0 && totalWeight - maxWeight > INVENTORY_WEIGHT_EPSILON)
+    if (maxUnits > 0 && _Inventory_Weight_GetTotalUnits(inventoryId) > maxUnits)
     {
         return false;
     }
@@ -819,4 +822,12 @@ stock bool:Inventory_Debug_Validate()
     }
 
     return true;
+}
+
+/* Incremental validation of one Inventory (O(slots)): the cheap counterpart of Inventory_Debug_Validate. */
+stock bool:Inventory_Debug_ValidateOne(
+    Inventory:inventoryId
+)
+{
+    return _Inventory_Core_IsInitialized() && _Inventory_Attachment_CheckInventory(inventoryId);
 }

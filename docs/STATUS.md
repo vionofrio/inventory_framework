@@ -1,6 +1,6 @@
 # Status
 
-**Version:** v0.1.7.4 (audit stages 1-4a on top of the v0.1.7.0 reorganization of v0.1.6.106). **Verified by:** v0.1.7.3 compiled and all suites passed (maintainer report; the counts were not recorded); the v0.1.7.4 changes are verified by `tools/check.py` only.
+**Version:** v0.1.10.0 (audit stages 1-6c on top of the v0.1.7.0 reorganization of v0.1.6.106). **Verified by:** v0.1.7.1 compiled and all suites passed (maintainer report; counts not recorded); v0.1.10.0 was written without a compiler and is verified by `tools/check.py` only.
 
 ## State of the code
 
@@ -21,12 +21,12 @@
 | Instance property fallback | Instance -> Type -> Definition |
 | Persistence example | Removed (abandoned) |
 | Splitting the main regression test and the TextDraw example | Not done; see "Open" |
-| Identity | `uid` (runtime counter) and optional `uuid` (pawn-uuid as default generator); designed, not implemented |
+| Identity | `uid` / `uuid` not provided; consumers may layer their own, or it returns as a future stage (design in `AUDIT_V0_1_7.md` section 6) |
 
 ## Open
 
-1. Compile every entry point and run the suites for v0.1.7.4 and record the numbers in `TESTING.md`. This is the gate for audit
-   stages S4b and S5 (`AUDIT_V0_1_7.md`). Risk R1 (String properties across `SplitStack`) was closed by the v0.1.7.1 run.
+1. Compile every entry point and run all suites for v0.1.10.0 and record the numbers in `TESTING.md`. Stages S3b to S6c
+   changed the core mutation paths and have never been compiled (`AUDIT_V0_1_7.md`). Risk R1 (String properties across `SplitStack`) was checked by the v0.1.7.1 run and is closed.
 2. `tests/inventory_framework_test.pwn` is one long function and the TextDraw example is one 9,700-line file. Splitting either
    needs a compiler and test runs (in Pawn, `static` is file-local, so a split changes symbol visibility).
 3. The Player and Context pane functions of the TextDraw example (`CreateUI` / `CreateContextUI`, `SelectSlot` /

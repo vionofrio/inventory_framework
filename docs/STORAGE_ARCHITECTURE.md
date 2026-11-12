@@ -87,13 +87,6 @@ ItemInstance
     container bindings do not advance it.
 15. `_Inventory_Storage_IsWellFormed` is an O(1) structural check and guards every mutation. The O(slots^2) scan for
     duplicate or invalid instances lives in `_Inventory_Storage_IsConsistent`, which only the debug validator calls.
-16. Each storage keeps the cached local weight: the sum of the weights of the instances in its slots. It changes only at the
-    success path of the storage mutations (`TryInsert`, `TryRemove`, cross-storage `TryMove`, `TrySwapAcross`) and through
-    `_Inventory_Storage_AdjustWeight` when the stack of an attached item changes (`_Inventory_Stack_SetAttached`, the only
-    attached-stack write path). Operations never write the cache. `Inventory_Debug_Validate()` recomputes it from the slots.
-17. Consequences for operations: a compensation is the inverse storage call and restores the weight by itself; a validation
-    that depends on the cache must run before the insertion (the insertion changes the cache); an instance must have its
-    original stack restored before it is re-inserted, because its weight is read when it is inserted.
 
 ## Why this is a separate module
 
